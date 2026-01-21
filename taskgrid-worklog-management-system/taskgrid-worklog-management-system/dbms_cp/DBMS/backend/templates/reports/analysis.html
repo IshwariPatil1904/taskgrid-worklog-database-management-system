@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TaskGrid — Report Analysis</title>
+  <style>
+    :root{
+      --bg:#0c1022; --bg2:#0a0e1d; --card:rgba(255,255,255,.06); --card-deep:rgba(255,255,255,.08);
+      --muted:#a6b0d1; --text:#e9ecff; --accent1:#06d7ff; --accent2:#7b2cff; --ring:0 0 0 1px rgba(255,255,255,.06) inset, 0 10px 30px rgba(0,0,0,.45);
+      --ok:#2ad39a; --warn:#ffb020; --bad:#ff5d6c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; color:var(--text); font:15px/1.45 "Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;
+      background: radial-gradient(1200px 600px at 70% -10%, #1a2042 0%, transparent 60%),
+                  radial-gradient(900px 500px at -10% 20%, #12183a 0%, transparent 55%),
+                  linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      min-height:100vh;
+    }
+    header{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px;
+      border-bottom:1px solid rgba(255,255,255,.06); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      position:sticky; top:0; z-index:10; backdrop-filter: blur(10px);
+    }
+    .brand{display:flex; align-items:center; gap:10px}
+    .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, var(--accent1), var(--accent2)); display:grid; place-items:center; font-weight:800}
+    .btn, .btn-ghost{padding:10px 14px; border-radius:12px; border:0; cursor:pointer; font-weight:600; color:var(--text)}
+    .btn{background:linear-gradient(90deg, var(--accent1), var(--accent2)); box-shadow:0 8px 24px rgba(123,44,255,.3)}
+    .btn-ghost{background:rgba(255,255,255,.06)}
+    .container{max-width:1100px; margin:16px auto; padding:0 16px;}
+    .grid{display:grid; grid-template-columns: repeat(12,1fr); gap:16px}
+    .card{background:var(--card); border-radius:18px; box-shadow:var(--ring); padding:16px}
+    .kpi{grid-column: span 3; min-width:220px}
+    .kpi h4{margin:2px 0 6px; color:#b8c1ea; font-size:12px; letter-spacing:.12em; text-transform:uppercase}
+    .kpi .num{font-size:26px; font-weight:800}
+    .section-title{display:flex; align-items:center; justify-content:space-between; margin:6px 2px 10px}
+    .controls{display:flex; gap:10px; flex-wrap:wrap}
+    .field{display:flex; flex-direction:column; gap:6px}
+    .field input, .field select{background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color: var(--text); padding:10px 12px; border-radius:10px}
+    .bar{height:8px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden}
+    .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent1),var(--accent2))}
+    .notif{display:flex; gap:10px; padding:10px; border-radius:14px; background:var(--card); margin-bottom:10px}
+    .muted{color:var(--muted)}
+    @media(max-width:900px){.kpi{grid-column: span 6}}
+    @media(max-width:600px){.kpi{grid-column: span 12}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">TG</div>
+      <div>
+        <div style="font-weight:800">TaskGrid</div>
+        <small class="muted">Report Analysis</small>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="btn-ghost" onclick="window.location.href='../dashboard/dashboard-functional.html'">Dashboard</button>
+      <button class="btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title">
+        <h2>Filters</h2>
+        <div>
+          <button class="btn-ghost" id="resetBtn">Reset</button>
+          <button class="btn" id="applyBtn">Apply</button>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="field">
+          <label class="muted">Start Date</label>
+          <input type="date" id="startDate" />
+        </div>
+        <div class="field">
+          <label class="muted">End Date</label>
+          <input type="date" id="endDate" />
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="muted">Project</label>
+          <select id="projectSelect"><option value="">All Projects</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" id="kpis">
+      <div class="card kpi"><h4>Total Hours</h4><div class="num" id="kpiHours">0</div></div>
+      <div class="card kpi"><h4>Billable Hours</h4><div class="num" id="kpiBillable">0</div></div>
+      <div class="card kpi"><h4>Entries</h4><div class="num" id="kpiEntries">0</div></div>
+      <div class="card kpi"><h4>Cost</h4><div class="num" id="kpiCost">0</div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="section-title"><h2>Time Summary by User and Project</h2></div>
+      <div id="summary"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="section-title"><h2>Recent Work Logs</h2></div>
+      <div id="recent"></div>
+    </div>
+  </div>
+
+  
+  <script src="../js/api.js"></script>
+  <script>
+    // Simple toast
+    function toast(msg){
+      const t=document.createElement('div');
+      t.style.cssText='position:fixed;top:16px;right:16px;background:#06d7ff;color:#001;padding:10px 14px;border-radius:8px;z-index:9999;box-shadow:0 6px 18px rgba(0,0,0,.25)';
+      t.textContent=msg; document.body.appendChild(t); setTimeout(()=>{t.remove()},3500);
+    }
+
+    // Auth guard
+    (function guard(){
+      const token = window.api?.getToken?.() || localStorage.getItem('taskgrid_token');
+      if (!token){
+        toast('Login required');
+        setTimeout(()=>{ window.location.href = '../landing page/2-working.html'; }, 800);
+      }
+    })();
+
+    async function loadProjects(){
+      try {
+        const res = await window.api.getProjects();
+        const sel = document.getElementById('projectSelect');
+        sel.innerHTML = '<option value="">All Projects</option>' + (res.projects||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+      } catch(e){ console.warn('Projects load failed', e); }
+    }
+
+    function fmt(n){ return (n||0).toLocaleString(undefined,{maximumFractionDigits:2}); }
+
+    function renderSummary(data){
+      const mount = document.getElementById('summary');
+      const users = Object.keys(data||{});
+      if (!users.length){
+        mount.innerHTML = '<div class="muted">No data for selected filters.</div>';
+        return;
+      }
+      let html = '';
+      let totalHours=0, totalBillable=0, totalCost=0, entries=0;
+      users.forEach(u=>{
+        html += `<div class="card" style="background:var(--card-deep); margin-bottom:10px;">`;
+        html += `<div style="font-weight:700; margin-bottom:6px;">${u}</div>`;
+        const projects = Object.keys(data[u]);
+        projects.forEach(p=>{
+          const s=data[u][p];
+          totalHours += s.hours || 0; totalBillable += s.billable_hours||0; totalCost += s.cost||0; entries++;
+          const pct = s.hours? Math.min(100, Math.round((s.billable_hours||0)/(s.hours||1)*100)) : 0;
+          html += `<div class="notif"><div style="flex:1;"><div><strong>${p}</strong></div>
+            <div class="muted" style="font-size:12px;">Hours: ${fmt(s.hours)} • Billable: ${fmt(s.billable_hours)} • Cost: $${fmt(s.cost)}</div>
+            <div class="bar" style="margin-top:8px;"><i style="width:${pct}%"></i></div>
+          </div><span class="pill" style="align-self:center;background:rgba(255,255,255,.08);padding:6px 9px;border-radius:999px;">${pct}% billable</span></div>`;
+        });
+        html += `</div>`;
+      });
+      mount.innerHTML = html;
+      document.getElementById('kpiHours').textContent = fmt(totalHours);
+      document.getElementById('kpiBillable').textContent = fmt(totalBillable);
+      document.getElementById('kpiCost').textContent = `$${fmt(totalCost)}`;
+      document.getElementById('kpiEntries').textContent = fmt(entries);
+    }
+
+    async function loadRecent(){
+      try{
+        const logs = await window.api.getWorkLogs();
+        const list = (logs.work_logs||[]).slice(-10).reverse();
+        const html = list.map(l=>{
+          const dt = l.work_date || l.created_at || '';
+          const t = new Date(dt);
+          const when = isNaN(+t) ? dt : t.toLocaleDateString();
+          const desc = (l.description||'').slice(0,120);
+          return `<div class="notif"><div style="flex:1;"><div><strong>${l.task_title||('Task #'+l.task_id)}</strong></div>
+            <div class="muted" style="font-size:12px;">${when} • ${fmt(l.hours_logged)} hour(s) • ${l.is_billable?'Billable':'Non-billable'}</div>
+            ${desc?`<div class="muted" style="font-size:11px;">${desc}</div>`:''}
+          </div><span class="pill" style="align-self:center;background:rgba(255,255,255,.08);padding:6px 9px;border-radius:999px;">$${fmt(l.hourly_rate||0)}</span></div>`
+        }).join('');
+        document.getElementById('recent').innerHTML = html || '<div class="muted">No recent work logs.</div>';
+      }catch(e){ document.getElementById('recent').innerHTML = '<div class="muted">Unable to load recent logs.</div>'; }
+    }
+
+    async function loadReport(){
+      const params = new URLSearchParams();
+      const s = document.getElementById('startDate').value; if (s) params.set('start_date', s);
+      const e = document.getElementById('endDate').value; if (e) params.set('end_date', e);
+      const p = document.getElementById('projectSelect').value; if (p) params.set('project_id', p);
+      try{
+        const res = await window.api.request(`/data/reports/time-summary?${params.toString()}`);
+        renderSummary(res.time_summary||{});
+      }catch(err){ toast(err.message||'Failed to load report'); }
+    }
+
+    function logout(){ localStorage.clear(); toast('Logged out'); setTimeout(()=>{window.location.href='../landing page/2-working.html'},600); }
+
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      document.getElementById('applyBtn').addEventListener('click', loadReport);
+      document.getElementById('resetBtn').addEventListener('click', ()=>{
+        document.getElementById('startDate').value='';
+        document.getElementById('endDate').value='';
+        document.getElementById('projectSelect').value='';
+        loadReport();
+      });
+      await loadProjects();
+      await loadReport();
+      await loadRecent();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,3527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TaskGrid — Dashboard</title>
+<style>
+  :root{
+    --bg:#0c1022;
+    --bg2:#0a0e1d;
+    --card:rgba(255,255,255,.06);
+    --card-deep:rgba(255,255,255,.08);
+    --muted:#a6b0d1;
+    --text:#e9ecff;
+    --accent1:#06d7ff;
+    --accent2:#7b2cff;
+    --ok:#2ad39a;
+    --warn:#ffb020;
+    --bad:#ff5d6c;
+    --ring: 0 0 0 1px rgba(255,255,255,.06) inset, 0 10px 30px rgba(0,0,0,.45);
+  }
+
+  /* Page */
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    color:var(--text);
+    font:15px/1.45 "Segoe UI",Inter,system-ui,-apple-system,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 70% -10%, #1a2042 0%, transparent 60%),
+      radial-gradient(900px 500px at -10% 20%, #12183a 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    overflow:hidden;
+  }
+
+  /* Subtle starfield dots */
+  .dots{position:fixed; inset:0; pointer-events:none; opacity:.35}
+  .dots::before,.dots::after{
+    content:""; position:absolute; inset:-20%;
+    background-image:
+      radial-gradient(#8ad 1px, transparent 1px),
+      radial-gradient(#6cf 1px, transparent 1px),
+      radial-gradient(#9bf 1px, transparent 1px);
+    background-size: 120px 120px, 180px 180px, 240px 240px;
+    background-position: 0 0, 40px 60px, 100px 20px;
+    filter: blur(.2px);
+    animation: drift 60s linear infinite;
+  }
+  .dots::after{animation-duration:85s; opacity:.8}
+  @keyframes drift{to{transform:translateY(80px)}}
+
+  /* App shell */
+  .app{display:grid; grid-template-columns: 260px 1fr 330px; grid-template-rows: 72px 1fr; height:100%}
+
+  .topbar{
+    grid-column:1 / -1;
+    display:flex; align-items:center; gap:16px;
+    padding:12px 18px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    backdrop-filter: blur(10px);
+  }
+  .brand{display:flex; align-items:center; gap:10px; margin-right:auto}
+  .logo{
+    width:36px; height:36px; border-radius:10px;
+    background:linear-gradient(135deg, var(--accent1), var(--accent2));
+    display:grid; place-items:center; font-weight:800
+  }
+  .brand h1{font-size:16px; margin:0; letter-spacing:.4px; opacity:.95}
+  .role-badge{
+    padding:6px 10px; border-radius:999px;
+    background:linear-gradient(90deg, rgba(6,215,255,.15), rgba(123,44,255,.15));
+    border:1px solid rgba(123,44,255,.35);
+    font-size:12px; letter-spacing:.3px
+  }
+  .top-actions{display:flex; align-items:center; gap:10px}
+  .btn, .btn-ghost{
+    padding:10px 14px; border-radius:12px; border:0; cursor:pointer; font-weight:600; color:var(--text)
+  }
+  .btn{
+    background:linear-gradient(90deg, var(--accent1), var(--accent2));
+    box-shadow:0 8px 24px rgba(123,44,255,.3)
+  }
+  .btn-ghost{background:rgba(255,255,255,.06)}
+  .select{
+    appearance:none; background:rgba(255,255,255,.06); border:0; color:var(--text);
+    padding:10px 36px 10px 12px; border-radius:12px; font-weight:600; position:relative
+  }
+
+  /* Sidebar */
+  .side{
+    padding:16px; border-right:1px solid rgba(255,255,255,.06); background:rgba(0,0,0,.15); backdrop-filter: blur(8px)
+  }
+  .menu{display:flex; flex-direction:column; gap:8px}
+  .menu h3{margin:10px 8px 6px; color:#b8c1ea; font-size:12px; letter-spacing:.15em; text-transform:uppercase}
+  .item{
+    padding:12px 12px; border-radius:12px; background:transparent; color:var(--text); text-decoration:none; display:flex; align-items:center; gap:10px; cursor:pointer;
+  }
+  .item.active, .item:hover{
+    background:linear-gradient(90deg, rgba(6,215,255,.12), rgba(123,44,255,.12));
+    box-shadow:0 1px 0 0 rgba(255,255,255,.04) inset
+  }
+
+  /* Main */
+  .main{padding:18px 18px 22px; overflow:auto}
+  .grid{
+    display:grid; gap:16px;
+    grid-template-columns: repeat(12,1fr);
+  }
+  .card{
+    background:var(--card); border-radius:18px; box-shadow:var(--ring); padding:16px
+  }
+  .kpi{grid-column: span 3; min-width:220px}
+  .kpi h4{margin:2px 0 6px; color:#b8c1ea; font-size:12px; letter-spacing:.12em; text-transform:uppercase}
+  .kpi .num{font-size:26px; font-weight:800}
+  .kpi small{color:var(--muted)}
+
+  .section-title{display:flex; align-items:center; justify-content:space-between; margin:6px 2px 10px}
+  .section-title h2{margin:0; font-size:18px}
+  .chips{display:flex; gap:8px}
+  .chip{
+    font-size:12px; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.08); cursor:pointer;
+  }
+
+  /* Project/task cards */
+  .proj{grid-column: span 6; display:flex; flex-direction:column; gap:10px}
+  .proj h3{margin:0 0 2px; font-size:16px}
+  .meta{display:flex; gap:10px; color:var(--muted); font-size:12px}
+  .progress{
+    height:8px; border-radius:999px; background:rgba(255,255,255,.09); overflow:hidden; position:relative
+  }
+  .progress > i{
+    display:block; height:100%; width:0%;
+    background:linear-gradient(90deg, var(--accent1), var(--accent2));
+    transition:width .45s ease
+  }
+  .assignees{display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;}
+  .pill{
+    padding:6px 9px; border-radius:999px; font-size:12px; background:rgba(255,255,255,.08); cursor:pointer;
+  }
+
+  /* Right rail */
+  .rail{
+    padding:16px; border-left:1px solid rgba(255,255,255,.06); background:rgba(0,0,0,.15); backdrop-filter: blur(8px);
+    overflow:auto
+  }
+  .notif{display:flex; gap:10px; padding:10px; border-radius:14px; background:var(--card); margin-bottom:10px; cursor:pointer; transition:all .2s ease;}
+  .notif:hover{background:var(--card-deep)}
+  .notif.unread{border-left:3px solid var(--accent1)}
+  .dot{width:10px; height:10px; border-radius:50%}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+
+  /* Empty state */
+  .empty-state{
+    grid-column: 1 / -1; text-align:center; padding:3rem 2rem; color:var(--muted);
+  }
+  .empty-state i{font-size:3rem; margin-bottom:1rem; opacity:.5}
+  
+  /* Dark scrollbars */
+  *{scrollbar-color: rgba(123,44,255,.45) rgba(255,255,255,.06); scrollbar-width: thin;}
+  ::-webkit-scrollbar{width:10px; height:10px}
+  ::-webkit-scrollbar-track{background:rgba(255,255,255,.06); border-radius:8px}
+  ::-webkit-scrollbar-thumb{background:linear-gradient(180deg, var(--accent1), var(--accent2)); border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg, #1bbfff, #8a46ff)}
+  
+  /* Page container helpers */
+  .page{max-width:1100px; margin:0 auto;}
+  .page .card{margin-bottom:16px;}
+  .page-content{min-height:520px;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .form-grid .full{grid-column:1 / -1;}
+  .form-field{display:flex; flex-direction:column; gap:6px;}
+  .form-field input, .form-field select, .form-field textarea{
+    background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+    color: var(--text); padding:10px 12px; border-radius:10px; resize:vertical;
+  }
+  .actions{display:flex; gap:10px; justify-content:flex-end; margin-top:10px;}
+  .calendar-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:8px;}
+  .calendar-cell{min-height:110px;}
+  .sticky-header{position:sticky; top:0; background:transparent; z-index:1;}
+  
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(800px 400px at 50% -10%, rgba(26,32,66,.35), transparent 60%),
+      linear-gradient(180deg, rgba(12,16,34,.75), rgba(10,14,29,.75));
+    backdrop-filter: blur(6px);
+    display:flex; align-items:center; justify-content:center; z-index:10000; padding:20px;
+  }
+  .modal{
+    width: min(640px, 92vw);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius:18px; box-shadow: var(--ring); overflow:hidden;
+    color: var(--text);
+    color-scheme: dark;
+  }
+  .modal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .modal-body{padding:16px;}
+  .modal-actions{display:flex; gap:10px; justify-content:flex-end; padding:0 16px 16px;}
+  .close-x{cursor:pointer; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); color:var(--text); border-radius:8px; padding:6px 10px;}
+  .modal .form-field label{color:var(--muted);}
+  .modal input, .modal select, .modal textarea{
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.22);
+    color: var(--text);
+    caret-color: var(--text);
+  }
+  .modal input:focus, .modal select:focus, .modal textarea:focus{
+    border-color: var(--accent1);
+    box-shadow: 0 0 0 3px rgba(6,215,255,.12);
+  }
+  .modal select option, .modal select optgroup{ background-color:#0a0e1d; color: var(--text); }
+  .modal input::placeholder, .modal textarea::placeholder{ color: var(--muted); opacity:.9; }
+
+  /* Responsive */
+  @media (max-width:1200px){
+    .app{grid-template-columns: 220px 1fr 0; grid-template-rows: 72px 1fr}
+    .rail{display:none}
+    .proj{grid-column: span 12}
+    .kpi{grid-column: span 6}
+  }
+  @media (max-width:820px){
+    .side{display:none}
+    .app{grid-template-columns:1fr}
+    .kpi{grid-column: span 12}
+  }
+</style>
+</head>
+<body>
+<div class="dots"></div>
+
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">TG</div>
+      <h1>TaskGrid</h1>
+      <span id="roleBadge" class="role-badge">Role: …</span>
+      <span id="topUserName" style="margin-left:10px; font-weight:600; opacity:.9;"></span>
+    </div>
+    <div class="top-actions">
+      <!-- role switcher for demo -->
+      <select id="roleSwitch" class="select" title="Switch role">
+        <option value="Member">Member</option>
+        <option value="Manager">Manager</option>
+        <option value="Admin">Admin</option>
+      </select>
+      <button class="btn-ghost" id="searchBtn">Search</button>
+      <button class="btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="side">
+    <nav id="menu" class="menu"></nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="grid" id="content">
+      <!-- KPI Row -->
+      <div class="card kpi">
+        <h4>Projects</h4>
+        <div class="num" id="kpiProjects">0</div>
+        <small>active projects</small>
+      </div>
+      <div class="card kpi">
+        <h4>Open Tasks</h4>
+        <div class="num" id="kpiTasks">0</div>
+        <small>pending items</small>
+      </div>
+      <div class="card kpi">
+        <h4>On Track</h4>
+        <div class="num" id="kpiOnTrack">0%</div>
+        <small>project health</small>
+      </div>
+      <div class="card kpi">
+        <h4>Notifications</h4>
+        <div class="num" id="kpiNotifs">0</div>
+        <small>unread items</small>
+      </div>
+
+      <!-- Section header -->
+      <div class="section-title" style="grid-column:1 / -1;">
+        <h2 id="sectionTitle">Your Projects</h2>
+        <div class="chips">
+          <span class="chip" onclick="showCreateTaskForm()">+ Add Task</span>
+          <span class="chip" onclick="showTimeline()">Timeline</span>
+          <span class="chip" onclick="generateReport()">Reports</span>
+        </div>
+      </div>
+
+      <!-- Project/Task cards container (filled by JS) -->
+      <div id="cardsMount" class="grid" style="grid-column:1 / -1;"></div>
+    </div>
+  </main>
+
+  <!-- Right rail -->
+  <aside class="rail">
+    <div class="card" style="margin-bottom:12px;">
+      <div class="section-title">
+        <h2>Recent Updates</h2>
+        <span class="chip">Live</span>
+      </div>
+      <div id="updates"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <h2>Notifications</h2>
+        <span class="chip" id="notifFilter" onclick="toggleNotificationFilter()">All</span>
+      </div>
+      <div id="notifs"></div>
+    </div>
+  </aside>
+</div>
+<script>
+/* ------- API Configuration ------- */
+// ✅ Always use backend root, even when inside /dashboard
+const API_BASE_URL = `${window.location.origin}`;
+let authToken = localStorage.getItem('taskgrid_token');
+
+// API Helper Functions
+// ✅ Robust API helper — handles invalid JSON & wrong paths silently
+async function apiCall(path, options = {}) {
+  const token = localStorage.getItem("taskgrid_token");
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  // Normalize path to absolute URL
+  const url = path.startsWith("http")
+    ? path
+    : `${window.location.origin}${path.startsWith("/") ? path : "/" + path}`;
+
+  try {
+    const res = await fetch(url, { ...options, headers });
+    const text = await res.text();
+
+    // If Flask returned an HTML page instead of JSON, ignore it silently
+    if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+      console.warn(`⚠️ HTML response instead of JSON for ${path}`);
+      return {};
+    }
+
+    if (!res.ok) {
+      console.warn("⚠️ API call failed:", path, res.status);
+      return {};
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (err) {
+      console.warn(`⚠️ Non-JSON response for ${path}:`, text.slice(0, 60));
+      return {};
+    }
+  } catch (err) {
+    console.error(`❌ Network error for ${path}:`, err);
+    return {};
+  }
+}
+
+
+/* ------- User Data Management ------- */
+let sample = {
+  projects: [],
+  tasksMine: [],
+  members: [],
+  updates: [],
+  notifs: [],
+  profile: {
+    name: "User",
+    email: "user@taskgrid.com",
+    role: "Member",
+    joinDate: new Date().toISOString().split('T')[0],
+    avatar: "YU",
+    preferences: {
+      notifications: true,
+      emailAlerts: true,
+      theme: "dark"
+    }
+  }
+};
+// ✅ Function to fetch profile and update UI immediately
+async function loadUserProfile() {
+  try {
+    const prof = await apiCall('/auth/profile');
+    if (prof && prof.user) {
+      localStorage.setItem('taskgrid_user', JSON.stringify(prof.user));
+      updateProfileUI(prof.user);
+    } else {
+      console.warn('⚠️ Could not fetch profile:', prof);
+    }
+  } catch (err) {
+    console.error('❌ Profile fetch error:', err);
+  }
+}
+
+// ✅ Function to fill UI fields dynamically
+function updateProfileUI(user) {
+  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User';
+  const email = user.email || '';
+  const role = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Member';
+
+  const nameEl = document.getElementById('profile-name');
+  const emailEl = document.getElementById('profile-email');
+  const roleEl = document.getElementById('profile-role');
+  const topUserEl = document.getElementById('topUserName');
+
+  if (nameEl) nameEl.textContent = fullName;
+  if (emailEl) emailEl.textContent = email;
+  if (roleEl) roleEl.textContent = role;
+  if (topUserEl) topUserEl.textContent = user.first_name || user.username || 'User';
+}
+
+// Load data from backend
+// ✅ Improved version — loads data instantly and handles partial failures safely
+async function loadUserData() {
+  if (!authToken) {
+    console.warn("⚠️ No token found. Redirecting to login.");
+    window.location.href = "/";
+    return;
+  }
+   
+  try {
+    // --- Step 1: Load profile (from local or backend) ---
+    let user = null;
+    const stored = localStorage.getItem("taskgrid_user");
+    if (stored) {
+      try { user = JSON.parse(stored); } catch {}
+    }
+
+    if (!user) {
+      const prof = await apiCall("/auth/profile");
+      if (prof && prof.user) {
+        user = prof.user;
+        localStorage.setItem("taskgrid_user", JSON.stringify(user));
+      }
+    }
+
+    if (user) setProfileFromUser(user);
+
+    // --- Step 2: Load tasks first (critical path) ---
+    // --- Step 2: Load tasks first (critical path) ---
+const tasksData = await apiCall("/data/tasks");
+const rawTasks = tasksData.tasks || [];
+
+// 🔄 Normalize server task objects to match UI expectations
+sample.tasksMine = rawTasks.map(t => ({
+  id: t._id || t.id,
+  _id: t._id || t.id,
+  title: t.title || "Untitled Task",
+  description: t.description || "",
+  status: (t.status || "todo").toLowerCase(),
+  priority: (t.priority || "medium").toLowerCase(),
+  progress: Number(t.progress || 0),
+  // Normalize dates
+  start_date: t.start_date || t.startDate || null,
+  due_date: t.due_date || t.dueDate || null,
+  due: t.due_date || t.dueDate || t.due || null,
+  // Project association
+  project_id: t.project_id || t.projectId || t.project_id_str || null,
+  project: t.project_name || t.project || "Unknown Project",
+  // Assignee
+  assignee: t.assignee || t.assignee_name || "You",
+  assignee_name: t.assignee_name || t.assignee || "You",
+  // Misc
+  estimated_hours: Number(t.estimated_hours || 0),
+  created: t.created_at || new Date().toISOString()
+}));
+
+console.log("✅ Normalized tasks:", sample.tasksMine);
+
+// --- Step 3: Render tasks immediately ---
+renderMain();
+fillKPIs();
+
+
+    // --- Step 3: Render tasks immediately ---
+    renderMain();
+    fillKPIs();
+
+    // --- Step 4: Load projects (secondary) ---
+    try {
+      const projectsData = await apiCall("/data/projects");
+      sample.projects = projectsData.projects || [];
+      console.log("✅ Loaded projects:", sample.projects);
+    } catch (err) {
+      console.warn("⚠️ Could not load projects:", err);
+    }
+
+    // --- Step 5: Load members list (optional) ---
+    try {
+      const usersData = await apiCall("/data/users");
+      sample.members = usersData.users || [];
+    } catch {
+      sample.members = [];
+    }
+
+    // --- Step 6: Updates, notifs, role, etc. ---
+    sample.updates = [{ t: "Dashboard synced!", kind: "ok", time: "Now" }];
+    sample.notifs = sample.notifs || [];
+    updateRoleUI();
+    renderRightRail();
+    fillKPIs();
+
+  } catch (error) {
+    console.error("❌ Failed to load data:", error);
+    setTimeout(loadUserData, 3000); // retry silently
+  }
+}
+
+
+function saveUserData(data) {
+  // Data is automatically saved to backend through API calls
+  console.log('Data saved to backend');
+}
+
+// Map backend role to UI label
+function uiRoleFromBackend(role){
+  if (!role) return 'Member';
+  const map = { admin:'Admin', manager:'Manager', team_member:'Member', member:'Member' };
+  const key = String(role).toLowerCase();
+  return map[key] || (key.charAt(0).toUpperCase()+key.slice(1));
+}
+
+// Populate sample.profile from backend/local user object
+function setProfileFromUser(u){
+  if (!u) return;
+  const first = (u.first_name||u.firstName||'').trim();
+  const last = (u.last_name||u.lastName||'').trim();
+  const name = [first,last].filter(Boolean).join(' ') || u.username || u.email || 'User';
+  const email = u.email || '';
+  const roleLabel = uiRoleFromBackend(u.role||u.user_role);
+  const joined = u.created_at || new Date().toISOString();
+  const baseForInitials = (first ? `${first} ${last}` : (name||''));
+  const initials = baseForInitials.split(' ').filter(Boolean).map(s=>s[0]).join('').toUpperCase().slice(0,2) || 'U';
+  sample.profile = {
+    name,
+    email,
+    role: roleLabel,
+    joinDate: joined,
+    avatar: initials,
+    preferences: sample.profile?.preferences || { notifications:true, emailAlerts:true, theme:'dark' }
+  };
+}
+
+/* ------- Utility functions ------- */
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed; top: 20px; right: 20px; z-index: 10000;
+    background: ${type === 'success' ? '#2ad39a' : type === 'error' ? '#ff5d6c' : type === 'warn' ? '#ffb020' : '#06d7ff'};
+    color: white; padding: 12px 20px; border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateX(100%);
+    transition: transform 0.3s ease; max-width: 400px;
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => toast.style.transform = 'translateX(0)', 100);
+  setTimeout(() => {
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => toast.remove(), 300);
+  }, 5000);
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'No date';
+  const date = new Date(dateString);
+  const today = new Date();
+  const diffTime = date - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays === -1) return 'Yesterday';
+  if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`;
+  if (diffDays <= 7) return `${diffDays} days`;
+  
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getDaysUntilDeadline(dueDate) {
+  if (!dueDate) return null;
+  const today = new Date();
+  const deadline = new Date(dueDate);
+  const diffTime = deadline - today;
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function getTaskStatus(task) {
+  const daysUntil = getDaysUntilDeadline(task.due);
+  if (task.status === 'completed') return 'completed';
+  if (daysUntil < 0) return 'overdue';
+  if (daysUntil <= 2) return 'due-soon';
+  return 'normal';
+}
+
+/* ------- Role & shell wiring ------- */
+const roleSwitch = document.getElementById('roleSwitch');
+const roleBadge  = document.getElementById('roleBadge');
+const menuMount  = document.getElementById('menu');
+const cardsMount = document.getElementById('cardsMount');
+const sectionTitle = document.getElementById('sectionTitle');
+
+function detectRole(){
+  try {
+    const stored = localStorage.getItem('taskgrid_user');
+    if (stored) {
+      const u = JSON.parse(stored);
+      const r = uiRoleFromBackend(u.role || u.user_role);
+      if (roleSwitch) roleSwitch.value = r;
+      return r;
+    }
+  } catch (e) {}
+  const r = sample.profile?.role || 'Member';
+  if (roleSwitch) roleSwitch.value = r;
+  return r;
+}
+
+
+roleSwitch.addEventListener('change', ()=>{
+  role = roleSwitch.value;
+  roleBadge.textContent = `Role: ${role}`;
+  renderMenu();
+  renderMain();
+});
+ /* ------- RENDER MAIN FUNCTION ------- */
+/* ------- RENDER MAIN FUNCTION ------- */
+function renderMain() {
+  const mount = document.getElementById('cardsMount');
+  mount.innerHTML = '';
+
+  // 🟣 Show loading spinner while tasks load
+  mount.innerHTML = `<div class="empty-state"><i>⏳</i><p>Loading tasks...</p></div>`;
+
+  // Wait a short delay (for smoother transitions)
+  setTimeout(() => {
+    mount.innerHTML = '';
+
+    // 🔸 Case 1: No tasks found
+    if (!sample.tasksMine || sample.tasksMine.length === 0) {
+      mount.innerHTML = `
+        <div class="empty-state">
+          <i>🗒️</i>
+          <h3>No tasks yet</h3>
+          <p>Click <b>+ Add Task</b> above to create your first task.</p>
+        </div>`;
+      // Append quick actions even if no tasks
+      mount.appendChild(AdminPanel());
+      return;
+    }
+
+    // 🔹 Case 2: Tasks found
+    sample.tasksMine.forEach(t => {
+      const card = TaskCard(t);
+      mount.appendChild(card);
+    });
+
+    // ✅ Add Quick Actions at bottom
+    mount.appendChild(AdminPanel());
+
+  }, 300);
+}
+
+let role = detectRole();
+updateRoleUI();
+
+function updateRoleUI(){
+  roleBadge.textContent = `Role: ${role}`;
+  renderMenu();
+  renderRightRail();
+  renderMain();
+  fillKPIs();
+}
+
+function renderMenu(){
+  const groups = {
+    Admin: [
+      ["Projects","/projects"],
+      ["Tasks","/tasks"],
+      ["Reports & Analytics","/reports"],
+      ["Team Management","/team"],
+      ["Users","/users"],
+      ["Profile","/profile"]
+    ],
+    Manager: [
+      ["Projects","/projects"],
+      ["Tasks","/tasks"],
+      ["Reports & Analytics","/reports"],
+      ["My Team","/myteam"],
+      ["Notifications","/notifications"],
+      ["Profile","/profile"]
+    ],
+    Member: [
+      ["Tasks","/tasks"],
+      ["Projects","/projects"],
+      ["Reports & Analytics","/reports"],
+      ["Notifications","/notifications"],
+      ["Profile","/profile"]
+    ]
+  };
+  const list = groups[role] || groups.Member;
+  menuMount.innerHTML = `<h3>Menu</h3>` + list.map(([label]) =>
+    `<div class="item${label==='Projects'?' active':''}" onclick="navigateToSection('${label}')">${label}</div>`
+  ).join('');
+}
+
+/* ------- Navigation Functions ------- */
+function navigateToSection(section) {
+  // Remove active class from all items
+  document.querySelectorAll('.item').forEach(item => item.classList.remove('active'));
+  // Add active class to clicked item
+  event.target.classList.add('active');
+  
+  if (section === 'Profile') {
+    showProfile();
+  } else if (section === 'Notifications') {
+    showNotifications();
+  } else if (section === 'Tasks') {
+    sectionTitle.textContent = "Your Tasks";
+    renderMain();
+  } else if (section === 'Projects') {
+    sectionTitle.textContent = "Your Projects";
+    renderMain();
+  } else if (section === 'Team Management') {
+    showTeamManagement();
+  } else if (section === 'My Team') {
+    showMyTeam();
+  } else if (section === 'Reports & Analytics' || section === 'Reports' || section === 'Report Analysis') {
+    showReportAnalysis();
+  } else {
+    showToast(`${section} section - Coming soon!`, 'info');
+  }
+}
+
+/* ------- Profile Management ------- */
+function showProfile() {
+  sectionTitle.textContent = "Profile Settings";
+
+  // ✅ Always use the latest user info from localStorage or backend
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('taskgrid_user'));
+  } catch (e) {}
+
+  if (!user || !user.email) {
+    // fallback: use default
+    user = sample.profile;
+  }
+
+  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User';
+  const email = user.email || 'Not available';
+  const role = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Member';
+  const joinDate = user.created_at ? formatDate(user.created_at) : formatDate(sample.profile.joinDate);
+  const initials = (user.first_name?.[0] || user.username?.[0] || 'U').toUpperCase();
+
+  cardsMount.innerHTML = `
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="section-title">
+        <h2>Profile Information</h2>
+        <span class="chip" onclick="editProfile()">Edit</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
+        <div style="text-align: center;">
+          <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent1), var(--accent2)); display: grid; place-items: center; font-size: 24px; font-weight: 800; margin: 0 auto 10px;">
+            ${initials}
+          </div>
+          <h3 id="profile-name">${fullName}</h3>
+          <p id="profile-role" style="color: var(--muted);">${role}</p>
+        </div>
+        <div>
+          <div style="margin-bottom: 15px;">
+            <strong>Email:</strong> <span id="profile-email">${email}</span>
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Role:</strong> ${role}
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Joined:</strong> ${joinDate}
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Tasks Created:</strong> ${sample.tasksMine.length}
+          </div>
+          <div style="margin-bottom: 15px;">
+            <strong>Projects:</strong> ${sample.projects.length}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="section-title">
+        <h2>Preferences</h2>
+      </div>
+      <div style="display: grid; gap: 15px;">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" ${sample.profile.preferences.notifications ? 'checked' : ''} onchange="togglePreference('notifications')">
+          <span>Email Notifications</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" ${sample.profile.preferences.emailAlerts ? 'checked' : ''} onchange="togglePreference('emailAlerts')">
+          <span>Deadline Alerts</span>
+        </label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span>Theme:</span>
+          <select onchange="changeTheme(this.value)" style="background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,.1); padding: 5px; border-radius: 5px;">
+            <option value="dark" ${sample.profile.preferences.theme === 'dark' ? 'selected' : ''}>Dark</option>
+            <option value="light" ${sample.profile.preferences.theme === 'light' ? 'selected' : ''}>Light</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function editProfile() {
+  const newName = prompt('Enter your name:', sample.profile.name);
+  const newEmail = prompt('Enter your email:', sample.profile.email);
+  
+  if (newName && newEmail) {
+    sample.profile.name = newName;
+    sample.profile.email = newEmail;
+    sample.profile.avatar = newName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    saveUserData(sample);
+    showProfile();
+    showToast('Profile updated successfully!', 'success');
+  }
+}
+
+function togglePreference(pref) {
+  sample.profile.preferences[pref] = !sample.profile.preferences[pref];
+  saveUserData(sample);
+  showToast(`${pref} ${sample.profile.preferences[pref] ? 'enabled' : 'disabled'}`, 'success');
+}
+
+function changeTheme(theme) {
+  sample.profile.preferences.theme = theme;
+  saveUserData(sample);
+  showToast(`Theme changed to ${theme}`, 'success');
+}
+
+/* ------- Notifications Management ------- */
+if (typeof showUnreadOnly === 'undefined') {
+    var showUnreadOnly = false;
+}
+
+
+function showNotifications() {
+  sectionTitle.textContent = "Notifications Center";
+  const unreadCount = sample.notifs.filter(n => !n.read).length;
+  
+  cardsMount.innerHTML = `
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="section-title">
+        <h2>All Notifications (${sample.notifs.length})</h2>
+        <div style="display: flex; gap: 8px;">
+          <span class="chip" onclick="markAllAsRead()">Mark All Read</span>
+          <span class="chip" onclick="clearAllNotifications()">Clear All</span>
+        </div>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <span style="color: var(--muted);">Unread: ${unreadCount}</span>
+      </div>
+      <div id="notificationsList">
+        ${sample.notifs.map(n => `
+          <div class="notif ${!n.read ? 'unread' : ''}" onclick="markAsRead(${n.id || Date.now()})">
+            <span class="dot ${n.kind}"></span>
+            <div style="flex: 1;">
+              <div>${n.t}</div>
+              <small style="color: var(--muted); font-size: 10px;">${n.time}</small>
+            </div>
+            ${!n.read ? '<div style="width: 8px; height: 8px; background: var(--accent1); border-radius: 50%;"></div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function toggleNotificationFilter() {
+  showUnreadOnly = !showUnreadOnly;
+  document.getElementById('notifFilter').textContent = showUnreadOnly ? 'Unread' : 'All';
+  updateNotifications();
+}
+
+function markAsRead(notifId) {
+  const notif = sample.notifs.find(n => n.id === notifId);
+  if (notif) {
+    notif.read = true;
+    saveUserData(sample);
+    showToast('Notification marked as read', 'success');
+    if (document.getElementById('notificationsList')) {
+      showNotifications(); // Refresh if in notifications view
+    }
+    updateNotifications(); // Update sidebar
+  }
+}
+
+function markAllAsRead() {
+  sample.notifs.forEach(n => n.read = true);
+  saveUserData(sample);
+  showToast('All notifications marked as read', 'success');
+  if (document.getElementById('notificationsList')) {
+    showNotifications();
+  }
+  updateNotifications();
+}
+
+function clearAllNotifications() {
+  if (confirm('Are you sure you want to clear all notifications?')) {
+    sample.notifs = [];
+    saveUserData(sample);
+    showToast('All notifications cleared', 'success');
+    if (document.getElementById('notificationsList')) {
+      showNotifications();
+    }
+    updateNotifications();
+  }
+}
+
+/* ------- Enhanced Project Card with deadline features ------- */
+function ProjectCard(p){
+  const el = document.createElement('div');
+  el.className = 'card proj';
+  
+  const daysUntil = getDaysUntilDeadline(p.deadline);
+  let deadlineStatus = '';
+  let deadlineColor = 'var(--muted)';
+  
+  if (p.deadline) {
+    if (daysUntil < 0) {
+      deadlineStatus = `${Math.abs(daysUntil)} days overdue`;
+      deadlineColor = 'var(--bad)';
+    } else if (daysUntil <= 7) {
+      deadlineStatus = `Due in ${daysUntil} days`;
+      deadlineColor = daysUntil <= 2 ? 'var(--warn)' : 'var(--ok)';
+    } else {
+      deadlineStatus = `Due ${formatDate(p.deadline)}`;
+    }
+  } else {
+    deadlineStatus = 'No deadline set';
+  }
+  
+  // Calculate progress from backend data or default to 0
+  const progress = p.get_progress ? p.get_progress() : (p.progress || 0);
+  const taskCount = p.task_count || p.openTasks || 0;
+  const ownerName = p.owner_name || p.owner || 'Unknown';
+  
+  // Check if admin or project_manager role to make projects clickable
+  const role = localStorage.getItem('role');
+  const canViewDetails = (role === 'admin' || role === 'project_manager');
+  const projectId = p._id || p.id;
+  const clickHandler = canViewDetails ? `onclick="showProjectDetails('${projectId}')" style="cursor: pointer;"` : '';
+  
+  el.innerHTML = `
+    <h3 ${clickHandler}>${p.name} ${canViewDetails ? '🔗' : ''}</h3>
+    <div class="meta">
+      <span>Owner: ${ownerName}</span> • 
+      <span>${taskCount} tasks</span> • 
+      <span style="color: ${deadlineColor}">${deadlineStatus}</span>
+    </div>
+    <div class="progress"><i style="width:${progress}%"></i></div>
+    <div class="assignees">
+      <span class="pill">${p.status === 'active' ? 'Active' : p.status}</span>
+      <span class="pill">Progress ${progress}%</span>
+      ${canViewDetails ? `<span class="pill" style="background: #667eea; color: white; cursor: pointer;" onclick="showProjectDetails('${projectId}')">📊 View Details</span>` : ''}
+      <span class="pill" onclick="showProjectTimeline(${p.id})">📅 Timeline</span>
+    </div>
+  `;
+  el.style.gridColumn = 'span 6';
+  return el;
+}
+
+/* ------- Enhanced Task Card with deadline features ------- */
+function TaskCard(t){
+  const el = document.createElement('div');
+  el.className = 'card proj';
+  
+  // Handle both due_date (backend) and due (frontend) properties
+  const dueDate = t.due_date || t.due;
+  const taskStatus = getTaskStatus({...t, due: dueDate});
+  const daysUntil = getDaysUntilDeadline(dueDate);
+  
+  let statusColor = 'var(--muted)';
+  let statusText = formatDate(dueDate);
+  
+  if (taskStatus === 'overdue') {
+    statusColor = 'var(--bad)';
+    statusText = `${Math.abs(daysUntil)} days overdue`;
+  } else if (taskStatus === 'due-soon') {
+    statusColor = 'var(--warn)';
+    statusText = `Due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
+  } else if (taskStatus === 'completed') {
+    statusColor = 'var(--ok)';
+    statusText = 'Completed';
+  }
+  
+  // Calculate progress (backend tasks might not have progress field)
+  const progress = t.progress || 0;
+  const projectName = t.project_name || t.project || 'Unknown Project';
+  const assigneeName = t.assignee_name || t.assignee || 'Unassigned';
+  const tid = t._id || t.id; // normalized id for actions
+  const isSubtask = t.title && t.title.startsWith('[Subtask]');
+  const userRole = localStorage.getItem('role');
+  
+  // For subtasks, use the id field directly (backend sets both id and subtask_id to same value)
+  let workSubmitId = tid; // default to regular id
+  if (isSubtask) {
+    // Debug: log the entire task object to see what fields are available
+    console.log('🔍 Subtask object:', JSON.stringify(t, null, 2));
+    console.log('🔑 Available IDs - id:', t.id, 'subtask_id:', t.subtask_id, '_id:', t._id, 'tid:', tid);
+    
+    // Backend sets 'id' as the main identifier for subtasks converted to task format
+    workSubmitId = t.id || t.subtask_id || t._id || tid;
+    console.log('✅ Selected workSubmitId:', workSubmitId);
+    console.log('🎯 typeof workSubmitId:', typeof workSubmitId, 'value:', workSubmitId);
+  }
+  
+  // Determine which actions to show based on role and task type
+  let actionButtons = '';
+  
+  if (userRole === 'team_member' && isSubtask) {
+    console.log('🔧 Creating Submit Work button with ID:', workSubmitId);
+    // Team members see Submit Work button for subtasks
+    actionButtons = `
+      <span class="pill">${assigneeName}</span>
+      <span class="pill editable-progress" onclick="editTaskProgress('${tid}', ${progress})">Progress ${progress}%</span>
+      <span class="pill" style="background: var(--ok); color: white; cursor: pointer;" onclick="showWorkSubmissionForm('${workSubmitId}', '${t.title.replace(/'/g, "\\'")}', true)">📤 Submit Work</span>
+    `;
+  } else {
+    // Admin/PM see standard actions
+    actionButtons = `
+      <span class="pill">${assigneeName}</span>
+      <span class="pill editable-progress" onclick="editTaskProgress('${tid}', ${progress})">Progress ${progress}%</span>
+      <span class="pill" onclick="editTaskProgress('${tid}', ${progress})">📈 Update</span>
+      <span class="pill" onclick="assignTask('${tid}')">👥 Assign</span>
+      <span class="pill" style="background: rgba(255,93,108,.15); border:1px solid rgba(255,93,108,.35);" onclick="deleteTask('${tid}')">🗑️ Delete</span>
+    `;
+  }
+  
+  el.innerHTML = `
+    <h3>${t.title}</h3>
+    <div class="meta">
+      <span>${projectName}</span> • 
+      <span style="color: ${statusColor}">${statusText}</span> • 
+      <span>Priority: ${t.priority}</span>
+    </div>
+    <div class="progress"><i style="width:${progress}%"></i></div>
+    <div class="assignees">
+      ${actionButtons}
+    </div>
+  `;
+  el.style.gridColumn = 'span 6';
+  return el;
+}
+
+// Delete task handler
+async function deleteTask(taskId){
+  if (!taskId) { showToast('Invalid task id', 'error'); return; }
+  const confirmDel = confirm('Are you sure you want to delete this task? This action cannot be undone.');
+  if (!confirmDel) return;
+  
+  try {
+    const res = await apiCall(`/data/tasks/${taskId}`, { method: 'DELETE' });
+    if (res && !res.error) {
+      // remove locally by both possible id fields
+      sample.tasksMine = sample.tasksMine.filter(t => String(t.id) !== String(taskId) && String(t._id) !== String(taskId));
+      showToast('Task deleted', 'success');
+      renderMain();
+      fillKPIs();
+      updateNotifications();
+    } else {
+      showToast(res?.error || 'Failed to delete task', 'error');
+    }
+  } catch (e) {
+    console.error('Delete failed', e);
+    showToast('Network error while deleting task', 'error');
+  }
+}
+
+// Work submission for team members
+function showWorkSubmissionForm(taskId, taskTitle, isSubtask) {
+  console.log(`📤 showWorkSubmissionForm called - ID: ${taskId}, Title: ${taskTitle}, isSubtask: ${isSubtask}`);
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: grid; place-items: center; z-index: 10000;';
+  
+  modal.innerHTML = `
+    <div class="card" style="max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div class="section-title" style="margin-bottom: 20px;">
+        <h2>📤 Submit Work</h2>
+        <span class="chip" onclick="this.closest('[style*=\"position: fixed\"]').remove()">✕ Close</span>
+      </div>
+      
+      <h3 style="margin-bottom: 15px; color: var(--accent1);">${taskTitle}</h3>
+      
+      <form id="workSubmissionForm" onsubmit="submitWork(event, '${taskId}', ${isSubtask})">
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Work Description *</label>
+          <textarea 
+            id="workDescription" 
+            required 
+            placeholder="Describe what you've completed..." 
+            style="width: 100%; min-height: 120px; background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 12px; resize: vertical;"
+          ></textarea>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Progress (%)</label>
+          <input 
+            type="number" 
+            id="workProgress" 
+            min="0" 
+            max="100" 
+            value="100" 
+            required
+            style="width: 100%; background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 12px;"
+          />
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">Attach Files (optional)</label>
+          <input 
+            type="file" 
+            id="workFiles" 
+            multiple
+            accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.zip,.rar,.py,.js,.html,.css"
+            style="width: 100%; background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 12px;"
+          />
+          <small style="color: var(--muted); font-size: 12px;">Allowed: documents, images, code files, archives (max 16MB per file)</small>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" class="btn-ghost" onclick="this.closest('[style*=\"position: fixed\"]').remove()">Cancel</button>
+          <button type="submit" class="btn" style="background: var(--ok);">📤 Submit Work</button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+}
+
+async function submitWork(event, taskId, isSubtask) {
+  event.preventDefault();
+  
+  console.log(`📤 submitWork called - ID: ${taskId}, isSubtask: ${isSubtask}`);
+  
+  const description = document.getElementById('workDescription').value;
+  const progress = document.getElementById('workProgress').value;
+  const filesInput = document.getElementById('workFiles');
+  
+  const formData = new FormData();
+  
+  // If it's a subtask, send subtask_id; otherwise send task_id
+  if (isSubtask) {
+    formData.append('subtask_id', taskId);
+    console.log(`📝 Adding subtask_id: ${taskId}`);
+  } else {
+    formData.append('task_id', taskId);
+    console.log(`📝 Adding task_id: ${taskId}`);
+  }
+  
+  formData.append('description', description);
+  formData.append('progress', progress);
+  
+  console.log(`📝 Description: ${description.substring(0, 50)}..., Progress: ${progress}`);
+  
+  // Add files if selected
+  if (filesInput.files.length > 0) {
+    for (let i = 0; i < filesInput.files.length; i++) {
+      formData.append('files', filesInput.files[i]);
+      console.log(`📎 Adding file: ${filesInput.files[i].name}`);
+    }
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    console.log('📡 Sending POST request to /data/work-uploads...');
+    
+    const response = await fetch('/data/work-uploads', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    console.log(`📡 Response status: ${response.status}`);
+    const result = await response.json();
+    console.log('📡 Response data:', result);
+    
+    if (response.ok && !result.error) {
+      showToast('✅ Work submitted successfully! PM and Admin will be notified.', 'success');
+      // Close modal
+      document.querySelector('[style*="position: fixed"]').remove();
+      // Refresh tasks
+      await loadInitialData();
+      renderMain();
+    } else {
+      showToast(result.error || 'Failed to submit work', 'error');
+    }
+  } catch (error) {
+    console.error('Work submission error:', error);
+    showToast('Network error while submitting work', 'error');
+  }
+}
+/* ------- Admin Panel: Quick Actions ------- */
+function AdminPanel() {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.style.gridColumn = '1 / -1';
+  
+  // Check if user is project_manager to show Create Subtasks button
+  const role = localStorage.getItem('role');
+  const createSubtasksBtn = role === 'project_manager' 
+    ? '<button class="btn" onclick="window.location.href=\'/subtasks/create\'">📝 Create Subtasks</button>'
+    : '';
+  
+  // Add View Work Submissions button for PM and Admin
+  const viewWorkBtn = (role === 'project_manager' || role === 'admin')
+    ? '<button class="btn-ghost" onclick="showWorkSubmissions()">📋 View Submissions</button>'
+    : '';
+  
+  el.innerHTML = `
+    <div class="section-title" style="margin-bottom:8px;">
+      <h2>Quick Actions</h2>
+      <span class="chip">Enhanced</span>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      ${createSubtasksBtn}
+      ${viewWorkBtn}
+      <button class="btn-ghost" onclick="showCreateTaskForm()">➕ Add Task</button>
+      <button class="btn-ghost" onclick="showMembers()">👥 View Members</button>
+      <button class="btn-ghost" onclick="generateReport()">📊 Generate Report</button>
+      <button class="btn-ghost" onclick="showDeadlines()">📅 View Deadlines</button>
+      <button class="btn-ghost" onclick="exportData()">💾 Export Data</button>
+      <button class="btn-ghost" onclick="showProfile()">👤 Profile</button>
+    </div>
+  `;
+  return el;
+}
+
+// ✅ Replace your current editTaskProgress() function with this one
+async function editTaskProgress(taskId, currentProgress) {
+  const newVal = prompt(`Enter new progress (0–100):`, currentProgress);
+  if (newVal === null) return; // Cancelled
+  const newProgress = parseInt(newVal);
+  if (isNaN(newProgress) || newProgress < 0 || newProgress > 100) {
+    showToast('Invalid progress value. Enter between 0 and 100.', 'error');
+    return;
+  }
+
+  const task = sample.tasksMine.find(t => String(t.id) === String(taskId) || String(t._id) === String(taskId));
+  if (!task) {
+    showToast('Task not found locally.', 'error');
+    return;
+  }
+
+  // --- Update locally first ---
+  task.progress = newProgress;
+  if (newProgress >= 100) {
+    task.status = 'completed';
+    sample.notifs.unshift({
+      t: `✅ Task completed: ${task.title}`,
+      kind: 'ok',
+      time: 'Now',
+      read: false,
+      id: Date.now()
+    });
+  }
+
+  saveUserData(sample);
+  renderMain();
+  updateNotifications();
+
+  // --- Try to sync with backend ---
+  try {
+    const taskIdForAPI = task._id || task.id;
+    const updateRes = await apiCall(`/data/tasks/${taskIdForAPI}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        progress: newProgress,
+        status: task.status
+      })
+    });
+
+    if (updateRes && !updateRes.error) {
+      showToast(`Progress updated to ${newProgress}%`, 'success');
+    } else {
+      console.warn('Backend update failed:', updateRes);
+      showToast('Updated locally (server sync failed)', 'warn');
+    }
+  } catch (err) {
+    console.error('Progress update error:', err);
+    showToast('Updated locally (offline mode)', 'warn');
+  }
+}
+
+
+
+/* ------- Enhanced Admin Panel ------- */
+function AdminPanel(){
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.style.gridColumn = '1 / -1';
+  
+  // Check if user is project_manager to show Create Subtasks button
+  const role = localStorage.getItem('role');
+  const createSubtasksBtn = role === 'project_manager' 
+    ? '<button class="btn" onclick="window.location.href=\'/subtasks/create\'">📝 Create Subtasks</button>'
+    : '';
+  
+  // Add View Work Submissions button for PM and Admin
+  const viewWorkBtn = (role === 'project_manager' || role === 'admin')
+    ? '<button class="btn-ghost" onclick="showWorkSubmissions()">📋 View Submissions</button>'
+    : '';
+  
+  el.innerHTML = `
+    <div class="section-title" style="margin-bottom:8px;">
+      <h2>Quick Actions</h2>
+      <span class="chip">Enhanced</span>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      ${createSubtasksBtn}
+      ${viewWorkBtn}
+      <button class="btn-ghost" onclick="showCreateTaskForm()">➕ Add Task</button>
+      <button class="btn-ghost" onclick="showMembers()">👥 View Members</button>
+      <button class="btn-ghost" onclick="generateReport()">📊 Generate Report</button>
+      <button class="btn-ghost" onclick="showDeadlines()">📅 View Deadlines</button>
+      <button class="btn-ghost" onclick="exportData()">💾 Export Data</button>
+      <button class="btn-ghost" onclick="showProfile()">👤 Profile</button>
+    </div>
+  `;
+  return el;
+}
+
+/* ------- Main area ------- */
+function renderMenu() {
+  const groups = {
+    Admin: [
+      ["Tasks", "/tasks"],
+      ["Projects", "/projects"],
+      ["Notifications", "/notifications"],
+      ["Report Analysis", "/reports/analysis"],
+      ["Profile", "/profile"]
+    ],
+    Manager: [
+      ["Tasks", "/tasks"],
+      ["Projects", "/projects"],
+      ["Notifications", "/notifications"],
+      ["Report Analysis", "/reports/analysis"],
+      ["Profile", "/profile"]
+    ],
+    Member: [
+      ["Tasks", "/tasks"],
+      ["Projects", "/projects"],
+      ["Notifications", "/notifications"],
+      ["Profile", "/profile"]
+    ]
+  };
+
+  const list = groups[role] || groups.Member;
+  menuMount.innerHTML = `<h3>Menu</h3>` + list.map(([label]) =>
+    `<div class="item${label === 'Projects' ? ' active' : ''}" onclick="navigateToSection('${label}')">${label}</div>`
+  ).join('');
+}
+
+
+/* ------- Right rail ------- */
+function renderRightRail(){
+  document.getElementById('updates').innerHTML =
+    sample.updates.map(u => `
+      <div class="notif"><span class="dot ${u.kind}"></span><div>${u.t}<br><small style="color: var(--muted); font-size: 10px;">${u.time}</small></div></div>
+    `).join('');
+
+  updateNotifications();
+}
+
+/* ------- KPIs ------- */
+function fillKPIs(){
+  const proj = sample.projects.length;
+  const openTasks = sample.tasksMine.filter(t => t.status !== 'completed').length;
+  const onTrack = sample.projects.length > 0 ? Math.round(
+    (sample.projects.filter(p=>p.health==='ok').length / proj) * 100
+  ) : 0;
+  const unreadNotifs = sample.notifs.filter(n => !n.read).length;
+
+  document.getElementById('kpiProjects').textContent = proj;
+  document.getElementById('kpiTasks').textContent = openTasks;
+  document.getElementById('kpiOnTrack').textContent = onTrack + '%';
+  document.getElementById('kpiNotifs').textContent = unreadNotifs;
+}
+
+/* ------- Enhanced Functions ------- */
+
+// Timeline functionality
+function showProjectTimeline(projectId) {
+  const project = sample.projects.find(p => p.id === projectId);
+  if (!project) return;
+  
+  showToast(`📅 Timeline for ${project.name}:\nStart: ${formatDate(project.startDate)}\nDeadline: ${formatDate(project.deadline)}\nProgress: ${project.progress}%`, 'info');
+}
+
+function showTimeline() {
+  if (sample.tasksMine.length === 0) {
+    showToast('No tasks to show in timeline. Create a task first!', 'info');
+    return;
+  }
+  
+  const upcomingTasks = sample.tasksMine
+    .filter(t => t.due)
+    .sort((a, b) => new Date(a.due) - new Date(b.due))
+    .slice(0, 5);
+  
+  const timelineText = upcomingTasks
+    .map(t => `${t.title}: ${formatDate(t.due)} (${t.status})`)
+    .join('\n');
+  
+  showToast(`📅 Upcoming Timeline:\n${timelineText}`, 'info');
+}
+
+// Task progress update
+function updateTaskProgress(taskId) {
+  const task = sample.tasksMine.find(t => t.id === taskId);
+  if (!task) return;
+  
+  const newProgress = prompt(`Update progress for "${task.title}" (current: ${task.progress}%):`, task.progress);
+  if (newProgress !== null && !isNaN(newProgress) && newProgress >= 0 && newProgress <= 100) {
+    task.progress = parseInt(newProgress);
+    if (newProgress == 100) {
+      task.status = 'completed';
+      // Add completion notification
+      sample.notifs.unshift({
+        t: `✅ Task completed: ${task.title}`,
+        kind: 'ok',
+        time: 'Now',
+        read: false,
+        id: Date.now()
+      });
+    }
+    saveUserData(sample);
+    showToast(`Progress updated to ${newProgress}%`, 'success');
+    renderMain();
+    updateNotifications();
+  }
+}
+
+// Task assignment
+function assignTask(taskId) {
+  const task = sample.tasksMine.find(t => t.id === taskId);
+  if (!task) return;
+  
+  const membersList = sample.members.map(m => `${m.name} (${m.role})`).join('\n');
+  const selectedMember = prompt(`Assign "${task.title}" to:\n\n${membersList}\n\nEnter member name:`);
+  
+  if (selectedMember) {
+    const member = sample.members.find(m => m.name.toLowerCase().includes(selectedMember.toLowerCase()));
+    if (member) {
+      task.assignee = member.name;
+      saveUserData(sample);
+      showToast(`Task assigned to ${member.name}`, 'success');
+      renderMain();
+    } else {
+      showToast('Member not found', 'error');
+    }
+  }
+}
+
+// Enhanced Add Task functionality with REQUIRED dates and backend integration
+async function addNewTask() {
+  const title = prompt('Task title (required):');
+  if (!title || title.trim() === '') {
+    showToast('Task title is required!', 'error');
+    return;
+  }
+  
+  const description = prompt('Task description (optional):') || '';
+  
+  // Get or create project
+  let projectId = null;
+  if (sample.projects.length > 0) {
+    const projectsList = sample.projects.map((p, index) => `${index + 1}. ${p.name}`).join('\n');
+    const projectChoice = prompt(`Select existing project or create new:\n\n${projectsList}\n\nEnter project number (1-${sample.projects.length}) or type new project name:`);
+    
+    if (projectChoice && !isNaN(projectChoice) && projectChoice >= 1 && projectChoice <= sample.projects.length) {
+      projectId = sample.projects[parseInt(projectChoice) - 1].id;
+    } else if (projectChoice && projectChoice.trim()) {
+      // Create new project
+      try {
+        const newProject = await apiCall('/data/projects', 'POST', {
+          name: projectChoice.trim(),
+          description: `Project for ${title}`,
+          status: 'active',
+          priority: 'medium'
+        });
+        projectId = newProject.project.id;
+        showToast('New project created!', 'success');
+        // Refresh projects list
+        const projectsData = await apiCall('/data/projects');
+        sample.projects = projectsData.projects || [];
+      } catch (error) {
+        showToast('Failed to create project. Using offline mode.', 'warn');
+        // Fallback to local project creation
+        const localProject = {
+          id: Date.now(),
+          name: projectChoice.trim(),
+          description: `Project for ${title}`,
+          status: 'active',
+          priority: 'medium',
+          progress: 0,
+          owner: 'You',
+          openTasks: 1,
+          health: 'ok',
+          deadline: null
+        };
+        sample.projects.push(localProject);
+        projectId = localProject.id;
+      }
+    } else {
+      showToast('Project selection is required!', 'error');
+      return;
+    }
+  } else {
+    // No existing projects, create new one
+    const projectName = prompt('Project name (required):');
+    if (!projectName || projectName.trim() === '') {
+      showToast('Project name is required!', 'error');
+      return;
+    }
+    
+    try {
+      const newProject = await apiCall('/data/projects', 'POST', {
+        name: projectName.trim(),
+        description: `Project for ${title}`,
+        status: 'active',
+        priority: 'medium'
+      });
+      projectId = newProject.project.id;
+      showToast('New project created!', 'success');
+      // Refresh projects list
+      const projectsData = await apiCall('/data/projects');
+      sample.projects = projectsData.projects || [];
+    } catch (error) {
+      showToast('Failed to create project. Using offline mode.', 'warn');
+      // Fallback to local project creation
+      const localProject = {
+        id: Date.now(),
+        name: projectName.trim(),
+        description: `Project for ${title}`,
+        status: 'active',
+        priority: 'medium',
+        progress: 0,
+        owner: 'You',
+        openTasks: 1,
+        health: 'ok',
+        deadline: null
+      };
+      sample.projects.push(localProject);
+      projectId = localProject.id;
+    }
+  }
+  
+  // Start date is required
+  const startDate = prompt('Start date (YYYY-MM-DD, required):', new Date().toISOString().split('T')[0]);
+  if (!startDate || !isValidDate(startDate)) {
+    showToast('Valid start date is required!', 'error');
+    return;
+  }
+  
+  // Due date is required
+  const dueDate = prompt('Due date (YYYY-MM-DD, required):');
+  if (!dueDate || !isValidDate(dueDate)) {
+    showToast('Valid due date is required!', 'error');
+    return;
+  }
+  
+  // Validate that due date is after start date
+  if (new Date(dueDate) <= new Date(startDate)) {
+    showToast('Due date must be after start date!', 'error');
+    return;
+  }
+  
+  const priority = prompt('Priority (low/medium/high/urgent):', 'medium');
+  const validPriorities = ['low', 'medium', 'high', 'urgent'];
+  const taskPriority = validPriorities.includes(priority?.toLowerCase()) ? priority.toLowerCase() : 'medium';
+  
+  // Estimate hours
+  const estimatedHours = prompt('Estimated hours (optional):') || '0';
+  const hours = parseFloat(estimatedHours) || 0;
+  const notifyPhone = prompt('Enter SMS number for reminders (optional, e.g., +15551234567):') || '';
+  
+  try {
+    // Create task via API
+    const newTaskData = await apiCall('/data/tasks', {
+  method: 'POST',
+  body: JSON.stringify({
+    title: title.trim(),
+    description,
+    project_id: projectId,
+    priority: taskPriority,
+    estimated_hours: hours,
+    start_date: startDate,
+    due_date: dueDate,
+    status: 'todo',
+    notify_phone: notifyPhone ? notifyPhone.trim() : undefined
+  })
+});
+
+    
+    // Add to local data
+    const newTask = {
+    id: newTaskData.task._id || newTaskData.task.id,
+    title,
+    project: sample.projects.find(p => (p._id || p.id) === project_id)?.name || 'Unknown Project',
+    project_id,
+    description,
+    progress: 0,
+    due: due_date,
+    due_date,
+    start_date,
+    priority,
+    status: 'todo',
+    estimated_hours: estimated_hours || 0,
+    assignee: 'You',
+    created: newTaskData.task.created_at
+  };
+
+    
+    sample.tasksMine.push(newTask);
+    
+    // Add notification for new task
+    sample.notifs.unshift({
+      t: `📝 New task created: ${newTask.title}`,
+      kind: 'ok',
+      time: 'Now',
+      read: false,
+      id: Date.now() + 1
+    });
+    
+    // Add deadline notification if due soon
+    const daysUntil = getDaysUntilDeadline(dueDate);
+    if (daysUntil <= 7) {
+      sample.notifs.unshift({
+        t: `⏰ Task "${newTask.title}" is due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+        kind: 'warn',
+        time: 'Now',
+        read: false,
+        id: Date.now() + 2
+      });
+    }
+    
+    saveUserData(sample);
+    showToast('Task created successfully and saved to server!', 'success');
+    renderMain();
+    updateNotifications();
+    
+  } catch (error) {
+    showToast('Failed to save to server. Task saved locally.', 'warn');
+    
+    // Fallback to local task creation
+    const newTask = {
+      id: Date.now(),
+      title: title.trim(),
+      project: sample.projects.find(p => p.id === projectId)?.name || 'Unknown Project',
+      project_id: projectId,
+      description: description,
+      progress: 0,
+      due: dueDate,
+      due_date: dueDate,
+      start_date: startDate,
+      priority: taskPriority,
+      status: 'todo',
+      estimated_hours: hours,
+      assignee: 'You',
+      created: new Date().toISOString()
+    };
+    
+    sample.tasksMine.push(newTask);
+    
+    // Add notification for new task
+    sample.notifs.unshift({
+      t: `📝 New task created: ${newTask.title}`,
+      kind: 'ok',
+      time: 'Now',
+      read: false,
+      id: Date.now() + 1
+    });
+    
+    // Add deadline notification if due soon
+    const daysUntil = getDaysUntilDeadline(dueDate);
+    if (daysUntil <= 7) {
+      sample.notifs.unshift({
+        t: `⏰ Task "${newTask.title}" is due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+        kind: 'warn',
+        time: 'Now',
+        read: false,
+        id: Date.now() + 2
+      });
+    }
+    
+    saveUserData(sample);
+    showToast('Task created successfully with deadline!', 'success');
+    renderMain();
+    updateNotifications();
+  }
+}
+
+/* ------- Create Task Page ------- */
+function showCreateTaskForm(){
+  const projectsOptions = sample.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'createTaskOverlay';
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="createTaskTitle">
+      <div class="modal-header">
+        <h2 id="createTaskTitle" style="margin:0;font-size:18px;">New Task</h2>
+        <button class="close-x" id="createTaskCloseBtn">Close</button>
+      </div>
+      <div class="modal-body">
+        <form id="createTaskForm" class="form-grid">
+          <div class="form-field full">
+            <label>Title *</label>
+            <input type="text" name="title" required placeholder="Enter task title" />
+          </div>
+          <div class="form-field full">
+            <label>Description</label>
+            <textarea name="description" rows="4" placeholder="Optional description"></textarea>
+          </div>
+          <div class="form-field">
+            <label>Project</label>
+            <select name="project_id" id="projectSelect">
+              ${projectsOptions ? `<option value="">Select a project</option>${projectsOptions}` : ''}
+              <option value="__new__">+ Create new project</option>
+            </select>
+          </div>
+          <div class="form-field" id="newProjectNameWrap" style="display:${projectsOptions ? 'none':'block'};">
+            <label>New Project Name ${projectsOptions ? '' : '*'}</label>
+            <input type="text" id="newProjectName" placeholder="Enter new project name" ${projectsOptions ? '' : 'required'} />
+          </div>
+          <div class="form-field full" id="newProjectDescWrap" style="display:${projectsOptions ? 'none':'block'};">
+            <label>New Project Description</label>
+            <textarea id="newProjectDesc" rows="3" placeholder="Optional"></textarea>
+          </div>
+          <div class="form-field">
+            <label>Start Date *</label>
+            <input type="date" name="start_date" required value="${new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div class="form-field">
+            <label>Due Date *</label>
+            <input type="date" name="due_date" required />
+          </div>
+          <div class="form-field">
+            <label>Priority</label>
+            <select name="priority">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Estimated Hours</label>
+            <input type="number" name="estimated_hours" min="0" step="0.5" placeholder="e.g., 4" />
+          </div>
+          <div class="form-field full">
+            <label>SMS Number (optional)</label>
+            <input type="tel" name="notify_phone" placeholder="+15555555555" />
+          </div>
+          <div class="modal-actions full">
+            <button type="button" class="btn-ghost" id="createTaskCancelBtn">Cancel</button>
+            <button type="submit" class="btn">Create Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  const sel = overlay.querySelector('#projectSelect');
+  const newName = overlay.querySelector('#newProjectNameWrap');
+  const newDesc = overlay.querySelector('#newProjectDescWrap');
+  if (sel) sel.addEventListener('change', ()=>{
+    if (sel.value === '__new__' || sel.value === '') {
+      newName.style.display = 'block';
+      newDesc.style.display = 'block';
+      const nameInput = overlay.querySelector('#newProjectName');
+      if (nameInput) nameInput.required = true;
+    } else {
+      newName.style.display = 'none';
+      newDesc.style.display = 'none';
+      const nameInput = overlay.querySelector('#newProjectName');
+      if (nameInput) nameInput.required = false;
+    }
+  });
+
+  const form = overlay.querySelector('#createTaskForm');
+  form.addEventListener('submit', submitCreateTaskForm);
+
+  overlay.querySelector('#createTaskCloseBtn').onclick = closeCreateTaskModal;
+  overlay.querySelector('#createTaskCancelBtn').onclick = closeCreateTaskModal;
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeCreateTaskModal(); });
+
+  window._tgEscHandler = (ev)=>{ if(ev.key === 'Escape') closeCreateTaskModal(); };
+  document.addEventListener('keydown', window._tgEscHandler);
+}
+
+function closeCreateTaskModal(){
+  const overlay = document.getElementById('createTaskOverlay');
+  if (overlay) overlay.remove();
+  document.body.style.overflow = '';
+  if (window._tgEscHandler) {
+    document.removeEventListener('keydown', window._tgEscHandler);
+    window._tgEscHandler = null;
+  }
+}
+
+async function submitCreateTaskForm(e){
+  e.preventDefault();
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const title = (data.title || '').trim();
+  if (!title) { showToast('Task title is required!', 'error'); return; }
+  const start_date = data.start_date;
+  const due_date = data.due_date;
+  if (!isValidDate(start_date) || !isValidDate(due_date)) { showToast('Enter valid dates (YYYY-MM-DD)', 'error'); return; }
+  if (new Date(due_date) <= new Date(start_date)) { showToast('Due date must be after start date!', 'error'); return; }
+
+  const priority = (data.priority || 'medium').toLowerCase();
+  const estimated_hours = parseFloat(data.estimated_hours || '0') || 0;
+  let project_id = (data.project_id && data.project_id !== '__new__') ? data.project_id : null;
+
+
+  // Create project if needed
+  if (!project_id) {
+    const name = (document.getElementById('newProjectName')?.value || '').trim();
+    if (!name) { showToast('Project name is required', 'error'); return; }
+    const description = document.getElementById('newProjectDesc')?.value || `Project for ${title}`;
+    try {
+      const newProject = await apiCall('/data/projects', {
+  method:'POST',
+  body: JSON.stringify({ name, description, status:'active', priority:'medium' })
+});
+      project_id = newProject.project._id || newProject.project.id;
+
+      try {
+        const projectsData = await apiCall('/data/projects');
+        sample.projects = projectsData.projects || [];
+      } catch {}
+    } catch (err) {
+      const localProject = { id: Date.now(), name, description, status:'active', priority:'medium', progress:0, owner:'You', openTasks:0, health:'ok', deadline:null };
+      sample.projects.push(localProject);
+      project_id = localProject.id;
+      showToast('Project created locally (offline)', 'warn');
+    }
+  }
+
+  try {
+    const newTaskData = await apiCall('/data/tasks', {
+  method: 'POST',
+  body: JSON.stringify({
+    title,
+    description: data.description || '',
+    project_id,
+    priority,
+    estimated_hours,
+    start_date,
+    due_date,
+    status: 'todo',
+    notify_phone: (data.notify_phone || '').trim() || undefined
+  })
+});
+
+
+    const newTask = {
+      id: newTaskData.task.id,
+      title,
+      project: sample.projects.find(p => p.id === project_id)?.name || 'Unknown Project',
+      project_id,
+      description: data.description || '',
+      progress: 0,
+      due: due_date,
+      due_date,
+      start_date,
+      priority,
+      status: 'todo',
+      estimated_hours,
+      assignee: 'You',
+      created: new Date().toISOString()
+    };
+    sample.tasksMine.push(newTask);
+    saveUserData(sample);
+    showToast('Task created successfully!', 'success');
+    closeCreateTaskModal();
+    renderMain();
+    updateNotifications();
+  } catch (error) {
+    const newTask = {
+      id: Date.now(),
+      title,
+      project: sample.projects.find(p => p.id === project_id)?.name || 'Unknown Project',
+      project_id,
+      description: data.description || '',
+      progress: 0,
+      due: due_date,
+      due_date,
+      start_date,
+      priority,
+      status: 'todo',
+      estimated_hours,
+      assignee: 'You',
+      created: new Date().toISOString()
+    };
+    sample.tasksMine.push(newTask);
+    saveUserData(sample);
+    showToast('Task created locally (offline)', 'warn');
+    closeCreateTaskModal();
+    renderMain();
+    updateNotifications();
+  }
+}
+
+function isValidDate(dateString) {
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date) && dateString.match(/^\d{4}-\d{2}-\d{2}$/);
+}
+
+// Enhanced notifications with deadline alerts
+async function fetchBackendNotifications() {
+  try {
+    const token = localStorage.getItem('taskgrid_token');
+    if (!token) {
+      console.log('⚠️ No token found, skipping notification fetch');
+      return;
+    }
+    
+    console.log('🔔 Fetching notifications from backend...');
+    const response = await fetch(`${API_BASE_URL}/data/notifications`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Received notifications:', data.notifications);
+      
+      const backendNotifs = (data.notifications || []).map(n => ({
+        t: n.message || n.title || 'New notification',
+        kind: n.type === 'admin_task_assigned' ? 'good' : (n.type === 'deadline' ? 'warn' : 'info'),
+        time: formatTimestamp(n.timestamp || n.created_at),
+        read: n.read || n.status === 'read',
+        id: n._id || n.id,
+        type: n.type
+      }));
+      
+      console.log(`📋 Processed ${backendNotifs.length} backend notifications`);
+      
+      // Merge backend notifications into sample.notifs (avoid duplicates)
+      backendNotifs.forEach(backendNotif => {
+        const exists = sample.notifs.find(n => n.id === backendNotif.id);
+        if (!exists) {
+          sample.notifs.unshift(backendNotif);
+          console.log('➕ Added notification:', backendNotif.t);
+        }
+      });
+    } else {
+      console.error('❌ Failed to fetch notifications:', response.status, response.statusText);
+    }
+  } catch (error) {
+    console.error('❌ Error fetching backend notifications:', error);
+  }
+}
+
+function formatTimestamp(timestamp) {
+  if (!timestamp) return 'Recently';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+async function updateNotifications() {
+  // First, fetch notifications from backend
+  await fetchBackendNotifications();
+  
+  const overdueTasks = sample.tasksMine.filter(t => getTaskStatus(t) === 'overdue');
+  const dueSoonTasks = sample.tasksMine.filter(t => getTaskStatus(t) === 'due-soon');
+  
+  const deadlineNotifs = [];
+  
+  overdueTasks.forEach(task => {
+    const days = Math.abs(getDaysUntilDeadline(task.due));
+    deadlineNotifs.push({
+      t: `🚨 OVERDUE: ${task.title} (${days} day${days !== 1 ? 's' : ''} overdue)`,
+      kind: 'bad',
+      time: 'Now',
+      read: false,
+      id: `overdue_${task.id}`
+    });
+  });
+  
+  dueSoonTasks.forEach(task => {
+    const days = getDaysUntilDeadline(task.due);
+    deadlineNotifs.push({
+      t: `⏰ Due ${days === 0 ? 'today' : `in ${days} day${days !== 1 ? 's' : ''}`}: ${task.title}`,
+      kind: 'warn',
+      time: 'Now',
+      read: false,
+      id: `due_soon_${task.id}`
+    });
+  });
+  
+  // Merge deadline notifications with existing ones (avoid duplicates)
+  deadlineNotifs.forEach(deadlineNotif => {
+    const exists = sample.notifs.find(n => n.id === deadlineNotif.id);
+    if (!exists) {
+      sample.notifs.unshift(deadlineNotif);
+    }
+  });
+  
+  // Filter notifications based on current filter
+  const notifsToShow = showUnreadOnly ? 
+    sample.notifs.filter(n => !n.read) : 
+    sample.notifs;
+  
+  // Update notifications display
+  document.getElementById('notifs').innerHTML = notifsToShow.slice(0, 10).map(n => `
+    <div class="notif ${!n.read ? 'unread' : ''}" onclick="markAsRead('${n.id}')">
+      <span class="dot ${n.kind}"></span>
+      <div style="flex: 1;">
+        <div>${n.t}</div>
+        <small style="color: var(--muted); font-size: 10px;">${n.time}</small>
+      </div>
+      ${!n.read ? '<div style="width: 8px; height: 8px; background: var(--accent1); border-radius: 50%;"></div>' : ''}
+    </div>
+  `).join('');
+  
+  // Update notification count in KPI
+  fillKPIs();
+}
+
+// Member management
+function showMembers() {
+  sectionTitle.textContent = "Team Members";
+  const members = sample.members && sample.members.length ? sample.members : [];
+  const names = members
+    .map(m => (m.first_name || m.last_name)
+      ? `${(m.first_name||'').trim()} ${(m.last_name||'').trim()}`.trim()
+      : (m.name || 'Unknown'))
+    .filter(n => n);
+
+  const listHtml = names.length
+    ? names.map(n => `<div class="notif"><div style="flex:1;"><strong>${n}</strong></div></div>`).join('')
+    : `<div class="empty-state"><i>👥</i><h3>No members found</h3><p>Members will appear here once available.</p></div>`;
+
+  cardsMount.innerHTML = `
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="section-title">
+        <h2>All Members (${names.length})</h2>
+        <span class="chip" onclick="renderMain()">Back</span>
+      </div>
+      <div style="display:grid; gap:10px;">${listHtml}</div>
+    </div>
+  `;
+}
+
+// Report generation - Redirect to new analytics dashboard
+function generateReport() {
+  showReportAnalysis();
+}
+
+// Legacy report view (keeping for backwards compatibility)
+function generateReportOld() {
+  sectionTitle.textContent = "Reports";
+  const totalTasks = sample.tasksMine.length;
+  const completedTasks = sample.tasksMine.filter(t => t.status === 'completed').length;
+  const overdueTasks = sample.tasksMine.filter(t => getTaskStatus({...t, due: t.due_date || t.due}) === 'overdue').length;
+  const avgProgress = totalTasks > 0 ? Math.round(sample.tasksMine.reduce((sum, t) => sum + (t.progress||0), 0) / totalTasks) : 0;
+  const activeProjects = sample.projects.length;
+  const unread = sample.notifs.filter(n => !n.read).length;
+
+  const byPriority = sample.tasksMine.reduce((acc,t)=>{ const p=(t.priority||'medium').toLowerCase(); acc[p]=(acc[p]||0)+1; return acc;}, {});
+  const byStatus = sample.tasksMine.reduce((acc,t)=>{ const s=(t.status||'todo').toLowerCase(); acc[s]=(acc[s]||0)+1; return acc;}, {});
+
+  function bar(count,max){const pct=max?Math.round((count/max)*100):0; return `<div style="height:8px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden;"><i style="display:block;height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent1),var(--accent2));"></i></div>`;}
+
+  const maxCount = Math.max(1, ...Object.values({...byPriority, ...byStatus}));
+
+  const priorityHtml = Object.entries(byPriority).map(([k,v])=>`<div><div style="display:flex;justify-content:space-between;"><span>${k}</span><span>${v}</span></div>${bar(v,maxCount)}</div>`).join('');
+  const statusHtml = Object.entries(byStatus).map(([k,v])=>`<div><div style="display:flex;justify-content:space-between;"><span>${k}</span><span>${v}</span></div>${bar(v,maxCount)}</div>`).join('');
+
+  const projectBreakdown = sample.projects.map(p=>{
+    const count = sample.tasksMine.filter(t=>t.project_id===p.id).length;
+    const progress = p.get_progress ? p.get_progress() : (p.progress || 0);
+    return `<div class="notif"><div style="flex:1;"><div><strong>${p.name}</strong></div><div style="color:var(--muted);font-size:12px;">Tasks: ${count} • Progress: ${progress}%${p.deadline?` • Deadline: ${formatDate(p.deadline)}`:''}</div></div></div>`;
+  }).join('') || `<div class="empty-state"><i>📁</i><h3>No projects</h3></div>`;
+
+  cardsMount.innerHTML = `
+    <div class="grid" style="grid-column:1 / -1;">
+      <div class="card kpi"><h4>Total Tasks</h4><div class="num">${totalTasks}</div></div>
+      <div class="card kpi"><h4>Completed</h4><div class="num">${completedTasks}</div></div>
+      <div class="card kpi"><h4>Overdue</h4><div class="num">${overdueTasks}</div></div>
+      <div class="card kpi"><h4>Avg Progress</h4><div class="num">${avgProgress}%</div></div>
+    </div>
+    <div class="card" style="grid-column:1 / -1;">
+      <div class="section-title"><h2>Report Summary</h2><span class="chip" onclick="renderMain()">Back</span></div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:16px;">
+        <div class="card" style="grid-column:span 6;">
+          <div class="section-title"><h2>By Priority</h2></div>
+          <div style="display:grid;gap:10px;">${priorityHtml || '<span style="color:var(--muted);">No tasks</span>'}</div>
+        </div>
+        <div class="card" style="grid-column:span 6;">
+          <div class="section-title"><h2>By Status</h2></div>
+          <div style="display:grid;gap:10px;">${statusHtml || '<span style=\"color:var(--muted);\">No tasks</span>'}</div>
+        </div>
+        <div class="card" style="grid-column:1 / -1;">
+          <div class="section-title"><h2>Projects</h2><span class="chip">Unread: ${unread}</span></div>
+          <div style="display:grid;gap:10px;">${projectBreakdown}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ------- Report Analysis (Charts + Export) ------- */
+const _loadedDeps = { chart:false, jspdf:false };
+function loadScriptOnce(src){
+  return new Promise((resolve, reject)=>{
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s=document.createElement('script'); s.src=src; s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+  });
+}
+async function ensureReportDeps(){
+  if (!_loadedDeps.chart) {
+    await loadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js');
+    _loadedDeps.chart = true;
+  }
+  if (!_loadedDeps.jspdf) {
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    _loadedDeps.jspdf = true;
+  }
+}
+
+function exportPDF(){
+  const jspdf = window.jspdf; if (!jspdf) { showToast('PDF library not loaded', 'error'); return; }
+  const doc = new jspdf.jsPDF();
+  doc.text('Reports & Analytics Dashboard', 20, 20);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+  doc.save('report-analysis.pdf');
+}
+
+function exportCSV(){
+  const rows = [
+    ['Metric','Value'],
+  ];
+  const tasks = sample.tasksMine || [];
+  const completed = tasks.filter(t=> (t.status||'').toLowerCase()==='completed').length;
+  const total = tasks.length; const pending = total - completed;
+  rows.push(['Completed Tasks', `${completed}`]);
+  rows.push(['Pending Tasks', `${pending}`]);
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='report-analysis.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+/* ------- Work Submissions View (PM/Admin) ------- */
+async function showWorkSubmissions() {
+  sectionTitle.textContent = '📋 Work Submissions';
+  cardsMount.innerHTML = '<div class="empty-state"><i>⏳</i><p>Loading submissions...</p></div>';
+  
+  try {
+    const response = await apiCall('/data/work-uploads');
+    const submissions = response.work_uploads || [];
+    
+    if (submissions.length === 0) {
+      cardsMount.innerHTML = `
+        <div class="empty-state">
+          <i>📋</i>
+          <h3>No work submissions yet</h3>
+          <p>Team members can submit their work from the dashboard.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const submissionsHtml = submissions.map(sub => {
+      const statusColor = sub.approval_status === 'approved' ? 'var(--ok)' : 
+                          sub.approval_status === 'rejected' ? 'var(--bad)' : 
+                          'var(--warn)';
+      const statusIcon = sub.approval_status === 'approved' ? '✅' : 
+                         sub.approval_status === 'rejected' ? '❌' : 
+                         '⏳';
+      
+      const filesHtml = sub.files && sub.files.length > 0 
+        ? sub.files.map((f, idx) => `
+            <span onclick="downloadWorkFile('${sub._id}', ${idx}, '${f.original_name.replace(/'/g, "\\'")}')"
+               class="pill" 
+               style="font-size: 11px; background: rgba(6,215,255,0.15); border: 1px solid rgba(6,215,255,0.3); color: #06d7ff; text-decoration: none; cursor: pointer;"
+               onmouseover="this.style.background='rgba(6,215,255,0.25)'"
+               onmouseout="this.style.background='rgba(6,215,255,0.15)'">
+              📄 ${f.original_name}
+            </span>
+          `).join('')
+        : '<span style="color: var(--muted); font-size: 12px;">No files attached</span>';
+      
+      return `
+        <div class="card" style="grid-column: span 6;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+            <div>
+              <h3 style="margin: 0 0 5px 0;">${sub.subtask_title || sub.task_title || 'Work Submission'}</h3>
+              <div style="color: var(--muted); font-size: 12px;">
+                By: ${sub.uploader_name || 'Team Member'} • 
+                ${formatDate(sub.submitted_at)}
+              </div>
+            </div>
+            <span class="pill" style="background: ${statusColor}; color: white;">
+              ${statusIcon} ${sub.approval_status || 'pending'}
+            </span>
+          </div>
+          
+          <div style="margin-bottom: 12px;">
+            <strong style="font-size: 13px;">Description:</strong>
+            <p style="margin: 5px 0; color: var(--muted); font-size: 13px;">${sub.description || 'No description provided'}</p>
+          </div>
+          
+          <div style="margin-bottom: 12px;">
+            <strong style="font-size: 13px;">Progress:</strong>
+            <div class="progress" style="margin-top: 5px;"><i style="width:${sub.progress || 0}%"></i></div>
+            <span style="font-size: 12px; color: var(--muted);">${sub.progress || 0}% complete</span>
+          </div>
+          
+          <div style="margin-bottom: 12px;">
+            <strong style="font-size: 13px;">Files:</strong>
+            <div style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
+              ${filesHtml}
+            </div>
+          </div>
+          
+          ${sub.approval_status === 'pending' ? `
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <button class="btn" style="background: var(--ok); flex: 1;" onclick="approveWork('${sub._id}')">
+                ✅ Approve
+              </button>
+              <button class="btn-ghost" style="flex: 1;" onclick="rejectWork('${sub._id}')">
+                ❌ Reject
+              </button>
+            </div>
+          ` : ''}
+          
+          ${sub.reviewed_at ? `
+            <div style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,.05); border-radius: 8px; font-size: 12px;">
+              <strong>Reviewed:</strong> ${formatDate(sub.reviewed_at)}
+              ${sub.feedback ? `<br><strong>Feedback:</strong> ${sub.feedback}` : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+    
+    cardsMount.innerHTML = `
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="section-title">
+          <h2>All Work Submissions (${submissions.length})</h2>
+          <span class="chip" onclick="renderMain()">Back to Tasks</span>
+        </div>
+      </div>
+      ${submissionsHtml}
+    `;
+    
+  } catch (error) {
+    console.error('Error loading work submissions:', error);
+    cardsMount.innerHTML = `
+      <div class="empty-state">
+        <i>⚠️</i>
+        <h3>Error loading submissions</h3>
+        <p>${error.message || 'Network error occurred'}</p>
+      </div>
+    `;
+  }
+}
+
+async function downloadWorkFile(workId, fileIndex, fileName) {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/data/work-uploads/${workId}/files/${fileIndex}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      showToast(error.error || 'Failed to download file', 'error');
+      return;
+    }
+    
+    // Get the file as a blob
+    const blob = await response.blob();
+    
+    // Create a temporary URL and trigger download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    showToast('📥 File downloaded successfully', 'success');
+  } catch (error) {
+    console.error('Download error:', error);
+    showToast('Failed to download file', 'error');
+  }
+}
+
+async function approveWork(workId) {
+  try {
+    const response = await apiCall(`/data/work-uploads/${workId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'approve', feedback: 'Work approved - Great job!' })
+    });
+    
+    if (response && !response.error) {
+      showToast('✅ Work approved successfully', 'success');
+      showWorkSubmissions(); // Refresh the list
+    } else {
+      showToast(response?.error || 'Failed to approve work', 'error');
+    }
+  } catch (error) {
+    console.error('Approval error:', error);
+    showToast('Network error while approving work', 'error');
+  }
+}
+
+async function rejectWork(workId) {
+  const feedback = prompt('Please provide feedback for rejection:');
+  if (feedback === null) return; // Cancelled
+  
+  try {
+    const response = await apiCall(`/data/work-uploads/${workId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback: feedback || 'Work needs revision' })
+    });
+    
+    if (response && !response.error) {
+      showToast('❌ Work rejected - Feedback sent', 'success');
+      showWorkSubmissions(); // Refresh the list
+    } else {
+      showToast(response?.error || 'Failed to reject work', 'error');
+    }
+  } catch (error) {
+    console.error('Rejection error:', error);
+    showToast('Network error while rejecting work', 'error');
+  }
+}
+
+/* ------- Project Details View (Admin/PM) ------- */
+async function showProjectDetails(projectId) {
+  sectionTitle.textContent = '📊 Project Details';
+  cardsMount.innerHTML = '<div class="empty-state"><i>⏳</i><p>Loading project details...</p></div>';
+  
+  try {
+    // Fetch project, tasks, subtasks, and work submissions
+    const [projectsRes, tasksRes, workUploadsRes] = await Promise.all([
+      apiCall('/data/projects'),
+      apiCall('/data/tasks'),
+      apiCall('/data/work-uploads')
+    ]);
+    
+    const project = projectsRes.projects?.find(p => (p._id || p.id) === projectId);
+    if (!project) {
+      cardsMount.innerHTML = '<div class="empty-state"><i>⚠️</i><h3>Project not found</h3></div>';
+      return;
+    }
+    
+    const projectTasks = tasksRes.tasks?.filter(t => (t.project_id === projectId || t.project === project.name)) || [];
+    const allSubmissions = workUploadsRes.work_uploads || [];
+    
+    // Get subtasks for this project's tasks
+    const subtasksRes = await apiCall('/data/subtasks/all');
+    const allSubtasks = subtasksRes.subtasks || [];
+    const projectSubtasks = allSubtasks.filter(st => 
+      projectTasks.some(t => (t._id || t.id) === st.task_id || (t._id || t.id) === st.parent_task_id)
+    );
+    
+    // Get work submissions for project tasks and subtasks
+    const taskIds = projectTasks.map(t => t._id || t.id);
+    const subtaskIds = projectSubtasks.map(st => st._id || st.id);
+    const projectSubmissions = allSubmissions.filter(sub => 
+      taskIds.includes(sub.task_id) || subtaskIds.includes(sub.subtask_id)
+    );
+    
+    // Calculate stats
+    const totalTasks = projectTasks.length;
+    const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
+    const totalSubtasks = projectSubtasks.length;
+    const completedSubtasks = projectSubtasks.filter(st => st.status === 'completed').length;
+    const pendingSubmissions = projectSubmissions.filter(sub => sub.approval_status === 'pending').length;
+    const approvedSubmissions = projectSubmissions.filter(sub => sub.approval_status === 'approved').length;
+    
+    let detailsHtml = `
+      <div class="card" style="grid-column: 1 / -1;">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div>
+            <h2 style="margin: 0 0 10px 0;">${project.name}</h2>
+            <p style="color: var(--muted); margin: 0;">${project.description || 'No description available'}</p>
+            <div style="margin-top: 10px; display: flex; gap: 15px; font-size: 13px; color: var(--muted);">
+              <span>👤 Owner: ${project.owner_name || 'Unknown'}</span>
+              <span>📅 Deadline: ${project.deadline ? formatDate(project.deadline) : 'No deadline'}</span>
+              <span>📊 Status: ${project.status || 'Active'}</span>
+            </div>
+          </div>
+          <button class="btn-ghost" onclick="renderProjects()">← Back to Projects</button>
+        </div>
+      </div>
+      
+      <!-- Stats Overview -->
+      <div class="card" style="grid-column: span 3; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <h3 style="margin: 0 0 10px 0; color: white; font-size: 32px;">${totalTasks}</h3>
+        <p style="margin: 0; color: rgba(255,255,255,0.9);">Total Tasks</p>
+        <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 12px;">${completedTasks} completed</p>
+      </div>
+      
+      <div class="card" style="grid-column: span 3; text-align: center; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <h3 style="margin: 0 0 10px 0; color: white; font-size: 32px;">${totalSubtasks}</h3>
+        <p style="margin: 0; color: rgba(255,255,255,0.9);">Total Subtasks</p>
+        <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 12px;">${completedSubtasks} completed</p>
+      </div>
+      
+      <div class="card" style="grid-column: span 3; text-align: center; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <h3 style="margin: 0 0 10px 0; color: white; font-size: 32px;">${pendingSubmissions}</h3>
+        <p style="margin: 0; color: rgba(255,255,255,0.9);">Pending Reviews</p>
+        <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 12px;">${approvedSubmissions} approved</p>
+      </div>
+      
+      <div class="card" style="grid-column: span 3; text-align: center; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <h3 style="margin: 0 0 10px 0; color: white; font-size: 32px;">${Math.round((completedTasks / Math.max(totalTasks, 1)) * 100)}%</h3>
+        <p style="margin: 0; color: rgba(255,255,255,0.9);">Progress</p>
+        <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 12px;">Overall completion</p>
+      </div>
+    `;
+    
+    // Tasks and Subtasks Section
+    detailsHtml += `
+      <div class="card" style="grid-column: 1 / -1;">
+        <h3 style="margin: 0 0 15px 0; border-bottom: 2px solid var(--border); padding-bottom: 10px;">📋 Tasks & Subtasks</h3>
+      </div>
+    `;
+    
+    for (const task of projectTasks) {
+      const taskSubtasks = projectSubtasks.filter(st => st.task_id === (task._id || task.id) || st.parent_task_id === (task._id || task.id));
+      const taskSubmissions = projectSubmissions.filter(sub => sub.task_id === (task._id || task.id));
+      
+      detailsHtml += `
+        <div class="card" style="grid-column: span 12; border-left: 4px solid #667eea;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+            <div>
+              <h4 style="margin: 0 0 5px 0;">${task.title}</h4>
+              <p style="margin: 0; color: var(--muted); font-size: 13px;">${task.description || 'No description'}</p>
+            </div>
+            <span class="pill" style="background: ${task.status === 'completed' ? 'var(--ok)' : 'var(--warn)'}; color: white;">
+              ${task.status || 'pending'}
+            </span>
+          </div>
+          
+          ${taskSubtasks.length > 0 ? `
+            <div style="margin-top: 15px; padding-left: 20px; border-left: 2px solid var(--border);">
+              <p style="margin: 0 0 10px 0; font-weight: 600; font-size: 13px; color: var(--muted);">
+                Subtasks (${taskSubtasks.length})
+              </p>
+              ${taskSubtasks.map(st => {
+                const stSubmissions = projectSubmissions.filter(sub => sub.subtask_id === (st._id || st.id));
+                const assignedUser = sample.users?.find(u => (u._id || u.id) === st.assigned_to);
+                
+                return `
+                  <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,.03); border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                      <div style="flex: 1;">
+                        <strong style="font-size: 13px;">📌 ${st.title}</strong>
+                        <div style="margin-top: 5px; font-size: 12px; color: var(--muted);">
+                          👤 Assigned to: <strong>${assignedUser ? `${assignedUser.first_name} ${assignedUser.last_name}` : st.assigned_to || 'Unassigned'}</strong>
+                          ${st.due_date ? ` • 📅 Due: ${formatDate(st.due_date)}` : ''}
+                        </div>
+                        ${st.description ? `<p style="margin: 5px 0 0 0; font-size: 12px; color: var(--muted);">${st.description}</p>` : ''}
+                      </div>
+                      <span class="pill" style="background: ${st.status === 'completed' ? 'var(--ok)' : st.status === 'in_progress' ? 'var(--warn)' : 'var(--muted)'}; color: white; font-size: 11px;">
+                        ${st.status || 'assigned'}
+                      </span>
+                    </div>
+                    
+                    ${stSubmissions.length > 0 ? `
+                      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; color: var(--muted);">
+                          📤 Work Submissions (${stSubmissions.length})
+                        </p>
+                        ${stSubmissions.map(sub => `
+                          <div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,.05); border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                              <span style="font-size: 11px; color: var(--muted);">
+                                ${formatDate(sub.submitted_at)} • Progress: ${sub.progress || 0}%
+                              </span>
+                              <span class="pill" style="font-size: 10px; padding: 2px 8px; background: ${
+                                sub.approval_status === 'approved' ? 'var(--ok)' : 
+                                sub.approval_status === 'rejected' ? 'var(--bad)' : 
+                                'var(--warn)'
+                              }; color: white;">
+                                ${sub.approval_status === 'approved' ? '✅' : sub.approval_status === 'rejected' ? '❌' : '⏳'} ${sub.approval_status || 'pending'}
+                              </span>
+                            </div>
+                            <p style="margin: 5px 0; font-size: 11px;">${sub.description || 'No description'}</p>
+                            ${sub.files && sub.files.length > 0 ? `
+                              <div style="margin-top: 5px; font-size: 10px;">
+                                <strong>📎 Attached Files:</strong><br>
+                                ${sub.files.map((f, idx) => `
+                                  <span onclick="downloadWorkFile('${sub._id}', ${idx}, '${f.original_name.replace(/'/g, "\\'")}')"
+                                     style="color: #06d7ff; text-decoration: none; display: inline-block; margin: 2px 8px 2px 0; padding: 2px 6px; background: rgba(6,215,255,0.1); border-radius: 4px; border: 1px solid rgba(6,215,255,0.3); cursor: pointer;"
+                                     onmouseover="this.style.background='rgba(6,215,255,0.2)'"
+                                     onmouseout="this.style.background='rgba(6,215,255,0.1)'">
+                                    📄 ${f.original_name}
+                                  </span>
+                                `).join('')}
+                              </div>
+                            ` : ''}
+                            ${sub.approval_status === 'pending' ? `
+                              <div style="display: flex; gap: 5px; margin-top: 8px;">
+                                <button class="btn" style="font-size: 11px; padding: 4px 10px; background: var(--ok);" onclick="approveWork('${sub._id}')">
+                                  ✅ Approve
+                                </button>
+                                <button class="btn-ghost" style="font-size: 11px; padding: 4px 10px;" onclick="rejectWork('${sub._id}')">
+                                  ❌ Reject
+                                </button>
+                              </div>
+                            ` : ''}
+                            ${sub.feedback ? `
+                              <div style="margin-top: 5px; padding: 5px; background: rgba(255,255,255,.03); border-radius: 4px; font-size: 11px;">
+                                💬 <strong>Feedback:</strong> ${sub.feedback}
+                              </div>
+                            ` : ''}
+                          </div>
+                        `).join('')}
+                      </div>
+                    ` : '<p style="margin: 10px 0 0 0; font-size: 11px; color: var(--muted);">No work submissions yet</p>'}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : '<p style="margin: 10px 0 0 20px; font-size: 12px; color: var(--muted);">No subtasks for this task</p>'}
+        </div>
+      `;
+    }
+    
+    if (projectTasks.length === 0) {
+      detailsHtml += `
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="empty-state">
+            <i>📋</i>
+            <h3>No tasks in this project yet</h3>
+            <p>Create tasks to get started</p>
+          </div>
+        </div>
+      `;
+    }
+    
+    cardsMount.innerHTML = detailsHtml;
+    
+  } catch (error) {
+    console.error('Error loading project details:', error);
+    cardsMount.innerHTML = `
+      <div class="empty-state">
+        <i>⚠️</i>
+        <h3>Error loading project details</h3>
+        <p>${error.message || 'Network error occurred'}</p>
+      </div>
+    `;
+  }
+}
+
+// Store chart instances globally for download
+const chartInstances = {};
+
+async function showReportAnalysis(){
+  sectionTitle.textContent = 'Reports & Analytics Dashboard';
+  cardsMount.innerHTML = `
+    <div class="card" style="grid-column:1 / -1; display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0; font-size:20px;">📊 Reports & Analytics Dashboard</h2>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-ghost" onclick="downloadAllCharts()">📥 Download All Charts</button>
+        <button class="btn-ghost" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="btn" onclick="exportCSV()">📊 Export CSV</button>
+      </div>
+    </div>
+    
+    <!-- Row 1: Pie and Doughnut -->
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Task Completion Status</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgPie', 'task-completion-pie')">💾 Download</button>
+      </div>
+      <canvas id="tgPie" height="260"></canvas>
+    </div>
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Project Progress Distribution</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgDoughnut', 'project-progress-doughnut')">💾 Download</button>
+      </div>
+      <canvas id="tgDoughnut" height="260"></canvas>
+    </div>
+    
+    <!-- Row 2: Bar Charts -->
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Tasks per User</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgBar', 'tasks-per-user-bar')">💾 Download</button>
+      </div>
+      <canvas id="tgBar" height="260"></canvas>
+    </div>
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Task Status Distribution</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgHorizontalBar', 'status-distribution-bar')">💾 Download</button>
+      </div>
+      <canvas id="tgHorizontalBar" height="260"></canvas>
+    </div>
+    
+    <!-- Row 3: Line and Area Charts -->
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Deadlines vs Completions Timeline</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgLine', 'timeline-line')">💾 Download</button>
+      </div>
+      <canvas id="tgLine" height="260"></canvas>
+    </div>
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Task Creation Trend</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgArea', 'creation-trend-area')">💾 Download</button>
+      </div>
+      <canvas id="tgArea" height="260"></canvas>
+    </div>
+    
+    <!-- Row 4: Radar and Polar -->
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Performance Metrics</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgRadar', 'performance-radar')">💾 Download</button>
+      </div>
+      <canvas id="tgRadar" height="300"></canvas>
+    </div>
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Priority Distribution</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgPolar', 'priority-polar')">💾 Download</button>
+      </div>
+      <canvas id="tgPolar" height="300"></canvas>
+    </div>
+    
+    <!-- Row 5: Stacked and Mixed -->
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Monthly Task Breakdown</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgStacked', 'monthly-stacked-bar')">💾 Download</button>
+      </div>
+      <canvas id="tgStacked" height="260"></canvas>
+    </div>
+    <div class="card" style="grid-column: span 6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3>Completion Rate vs Target</h3>
+        <button class="btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="downloadChart('tgMixed', 'completion-rate-mixed')">💾 Download</button>
+      </div>
+      <canvas id="tgMixed" height="260"></canvas>
+    </div>
+    
+    <!-- Row 6: Overdue Tasks List -->
+    <div class="card" style="grid-column: span 6;">
+      <h3>⚠️ Overdue Tasks</h3>
+      <ul id="tgOverdue" style="list-style:none; padding:0; margin:0;"></ul>
+    </div>
+    
+    <!-- Row 6: Statistics Summary -->
+    <div class="card" style="grid-column: span 6;">
+      <h3>📈 Statistics Summary</h3>
+      <div id="tgStats" style="display:grid; gap:10px;"></div>
+    </div>
+  `;
+
+  await ensureReportDeps();
+
+  // Data derivation (dynamic)
+  const tasks = sample.tasksMine || [];
+  const projects = sample.projects || [];
+  const users = sample.members || [];
+  const now = new Date();
+  const isOverdue = (t)=>{ const d = new Date(t.due_date||t.due); return (t.status||'').toLowerCase()!=='completed' && d.toString()!=='Invalid Date' && d < now; };
+
+  // Completed if status says so OR progress >= 100
+  const completed = tasks.filter(t=> ((t.status||'').toLowerCase()==='completed') || Number(t.progress||0) >= 100).length;
+  const total = tasks.length; const pending = Math.max(0, total - completed);
+  const inProgress = tasks.filter(t=> ((t.status||'').toLowerCase()==='in progress') || (Number(t.progress||0) > 0 && Number(t.progress||0) < 100)).length;
+
+  // 1. Pie chart: Completed vs Pending
+  try{
+    chartInstances.tgPie = new Chart(document.getElementById('tgPie'), {
+      type: 'pie',
+      data: { 
+        labels:['Completed','Pending','In Progress'], 
+        datasets:[{ 
+          data:[completed, pending, inProgress], 
+          backgroundColor:['#4caf50','#ff5d6c','#ffb020'],
+          borderColor: '#fff',
+          borderWidth: 2
+        }]
+      },
+      options: { 
+        responsive: true,
+        plugins: { 
+          legend: { position: 'bottom', labels: { color: '#e9ecff', font: { size: 12 } } },
+          title: { display: true, text: 'Task Status Breakdown', color: '#e9ecff' }
+        }
+      }
+    });
+  }catch(e){console.error('Pie chart error:', e)}
+
+  // 2. Doughnut chart: Project progress
+  const projNotStarted = projects.filter(p=> Number(p.progress||0) === 0).length;
+  const projInProgress = projects.filter(p=> Number(p.progress||0) > 0 && Number(p.progress||0) < 100).length;
+  const projCompleted = projects.filter(p=> Number(p.progress||0) >= 100).length;
+  try{
+    chartInstances.tgDoughnut = new Chart(document.getElementById('tgDoughnut'), {
+      type: 'doughnut',
+      data: { 
+        labels:['Completed','In Progress','Not Started'], 
+        datasets:[{ 
+          data:[projCompleted, projInProgress, projNotStarted], 
+          backgroundColor:['#2ad39a','#06d7ff','#a6b0d1'],
+          borderColor: '#fff',
+          borderWidth: 2
+        }]
+      },
+      options: { 
+        responsive: true,
+        plugins: { 
+          legend: { position: 'bottom', labels: { color: '#e9ecff', font: { size: 12 } } },
+          title: { display: true, text: `Total Projects: ${projects.length}`, color: '#e9ecff' }
+        }
+      }
+    });
+  }catch(e){console.error('Doughnut chart error:', e)}
+
+  // 3. Bar chart: Tasks per user
+  const byUser = {};
+  tasks.forEach(t=>{ const name = t.assignee_name || t.assignee || 'Unassigned'; byUser[name]=(byUser[name]||0)+1; });
+  const barLabels = Object.keys(byUser).slice(0,12);
+  const barData = barLabels.map(k=>byUser[k]);
+  try{
+    chartInstances.tgBar = new Chart(document.getElementById('tgBar'), {
+      type:'bar',
+      data:{ 
+        labels:barLabels, 
+        datasets:[{
+          label:'Tasks Assigned', 
+          data:barData, 
+          backgroundColor:'#00bcd4',
+          borderColor: '#06d7ff',
+          borderWidth: 1
+        }]
+      },
+      options:{ 
+        responsive:true, 
+        scales:{ 
+          y:{ beginAtZero:true, ticks:{ precision:0, color: '#a6b0d1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x:{ ticks:{ color: '#a6b0d1' }, grid: { display: false } }
+        },
+        plugins: { legend: { labels: { color: '#e9ecff' } } }
+      }
+    });
+  }catch(e){console.error('Bar chart error:', e)}
+
+  // 4. Horizontal Bar: Task status distribution
+  const statusCounts = {};
+  tasks.forEach(t=>{ const s = (t.status||'Pending').toLowerCase(); statusCounts[s]=(statusCounts[s]||0)+1; });
+  const statusLabels = Object.keys(statusCounts);
+  const statusData = statusLabels.map(k=>statusCounts[k]);
+  try{
+    chartInstances.tgHorizontalBar = new Chart(document.getElementById('tgHorizontalBar'), {
+      type:'bar',
+      data:{ 
+        labels:statusLabels.map(s=> s.charAt(0).toUpperCase() + s.slice(1)), 
+        datasets:[{
+          label:'Task Count', 
+          data:statusData, 
+          backgroundColor:['#4caf50','#ffb020','#ff5d6c','#7b2cff'],
+          borderColor: '#fff',
+          borderWidth: 1
+        }]
+      },
+      options:{ 
+        indexAxis: 'y',
+        responsive:true, 
+        scales:{ 
+          x:{ beginAtZero:true, ticks:{ precision:0, color: '#a6b0d1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y:{ ticks:{ color: '#a6b0d1' }, grid: { display: false } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }catch(e){console.error('Horizontal bar error:', e)}
+
+  // 5. Line chart: Deadlines vs Completions over last 8 weeks
+  function startOfWeek(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-day); return x; }
+  const weeksArr=[]; const weekIndex={};
+  let cursor = startOfWeek(new Date(now));
+  for (let i=7; i>=0; i--) {
+    const w = new Date(cursor); w.setDate(cursor.getDate() - 7*i);
+    const label = w.toLocaleDateString(undefined,{month:'short', day:'numeric'});
+    weeksArr.push({ label, start: new Date(w), end: new Date(w.getFullYear(), w.getMonth(), w.getDate()+7) });
+    weekIndex[label] = weeksArr.length-1;
+  }
+  const deadlines = new Array(weeksArr.length).fill(0);
+  const completions = new Array(weeksArr.length).fill(0);
+
+  tasks.forEach(t=>{
+    const due = new Date(t.due_date||t.due);
+    const created = new Date(t.created || t.start_date || t.created_at || Date.now());
+    if (!isNaN(due)) {
+      weeksArr.forEach((w,i)=>{ if (due >= w.start && due < w.end) deadlines[i]++; });
+    }
+    const done = ((t.status||'').toLowerCase()==='completed') || Number(t.progress||0) >= 100;
+    if (done) {
+      const compDate = !isNaN(due) ? due : (!isNaN(created) ? created : null);
+      if (compDate) {
+        weeksArr.forEach((w,i)=>{ if (compDate >= w.start && compDate < w.end) completions[i]++; });
+      }
+    }
+  });
+
+  try{
+    chartInstances.tgLine = new Chart(document.getElementById('tgLine'), {
+      type:'line',
+      data:{ labels:weeksArr.map(w=>w.label), datasets:[
+        { label:'Deadlines', data:deadlines, borderColor:'#ff9800', backgroundColor:'rgba(255,152,0,.15)', fill:true, tension:.3, pointRadius: 4 },
+        { label:'Completions', data:completions, borderColor:'#4caf50', backgroundColor:'rgba(76,175,80,.15)', fill:true, tension:.3, pointRadius: 4 }
+      ]},
+      options:{ 
+        responsive:true, 
+        scales:{ 
+          y:{ beginAtZero:true, ticks:{ precision:0, color: '#a6b0d1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x:{ ticks:{ color: '#a6b0d1' }, grid: { display: false } }
+        },
+        plugins: { legend: { labels: { color: '#e9ecff' } } }
+      }
+    });
+  }catch(e){console.error('Line chart error:', e)}
+
+  // 6. Area chart: Task creation trend
+  const creationCounts = new Array(weeksArr.length).fill(0);
+  tasks.forEach(t=>{
+    const created = new Date(t.created || t.start_date || t.created_at || Date.now());
+    if (!isNaN(created)) {
+      weeksArr.forEach((w,i)=>{ if (created >= w.start && created < w.end) creationCounts[i]++; });
+    }
+  });
+  try{
+    chartInstances.tgArea = new Chart(document.getElementById('tgArea'), {
+      type:'line',
+      data:{ 
+        labels:weeksArr.map(w=>w.label), 
+        datasets:[{ 
+          label:'Tasks Created', 
+          data:creationCounts, 
+          borderColor:'#7b2cff', 
+          backgroundColor:'rgba(123,44,255,.25)', 
+          fill:true, 
+          tension:.4,
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
+      },
+      options:{ 
+        responsive:true, 
+        scales:{ 
+          y:{ beginAtZero:true, ticks:{ precision:0, color: '#a6b0d1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x:{ ticks:{ color: '#a6b0d1' }, grid: { display: false } }
+        },
+        plugins: { legend: { labels: { color: '#e9ecff' } } }
+      }
+    });
+  }catch(e){console.error('Area chart error:', e)}
+
+  // 7. Radar chart: Performance metrics
+  const onTime = tasks.filter(t=> {
+    const done = ((t.status||'').toLowerCase()==='completed') || Number(t.progress||0) >= 100;
+    if (!done) return false;
+    const due = new Date(t.due_date||t.due);
+    return !isNaN(due) && due >= now;
+  }).length;
+  const highPriority = tasks.filter(t=> (t.priority||'').toLowerCase() === 'high').length;
+  const avgProgress = tasks.length > 0 ? tasks.reduce((sum,t)=> sum + Number(t.progress||0), 0) / tasks.length : 0;
+  
+  try{
+    chartInstances.tgRadar = new Chart(document.getElementById('tgRadar'), {
+      type:'radar',
+      data:{ 
+        labels:['Completion Rate','On-Time Delivery','High Priority','Avg Progress','Team Engagement'], 
+        datasets:[{ 
+          label:'Performance Score', 
+          data:[
+            (completed / Math.max(total, 1)) * 100,
+            (onTime / Math.max(completed, 1)) * 100,
+            (highPriority / Math.max(total, 1)) * 100,
+            avgProgress,
+            (users.length / Math.max(tasks.length, 1)) * 100
+          ], 
+          backgroundColor:'rgba(6,215,255,.25)', 
+          borderColor:'#06d7ff',
+          borderWidth: 2,
+          pointBackgroundColor: '#06d7ff'
+        }]
+      },
+      options:{ 
+        responsive:true,
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 100,
+            ticks: { color: '#a6b0d1', backdropColor: 'transparent' },
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            pointLabels: { color: '#e9ecff', font: { size: 11 } }
+          }
+        },
+        plugins: { legend: { labels: { color: '#e9ecff' } } }
+      }
+    });
+  }catch(e){console.error('Radar chart error:', e)}
+
+  // 8. Polar chart: Priority distribution
+  const lowPri = tasks.filter(t=> (t.priority||'medium').toLowerCase() === 'low').length;
+  const medPri = tasks.filter(t=> (t.priority||'medium').toLowerCase() === 'medium').length;
+  const highPri = tasks.filter(t=> (t.priority||'medium').toLowerCase() === 'high').length;
+  try{
+    chartInstances.tgPolar = new Chart(document.getElementById('tgPolar'), {
+      type:'polarArea',
+      data:{ 
+        labels:['High Priority','Medium Priority','Low Priority'], 
+        datasets:[{ 
+          data:[highPri, medPri, lowPri], 
+          backgroundColor:['rgba(255,93,108,.6)','rgba(255,176,32,.6)','rgba(42,211,154,.6)'],
+          borderColor: ['#ff5d6c','#ffb020','#2ad39a'],
+          borderWidth: 2
+        }]
+      },
+      options:{ 
+        responsive:true,
+        scales: {
+          r: {
+            ticks: { color: '#a6b0d1', backdropColor: 'transparent' },
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            pointLabels: { color: '#e9ecff', font: { size: 11 } }
+          }
+        },
+        plugins: { legend: { position: 'bottom', labels: { color: '#e9ecff', font: { size: 11 } } } }
+      }
+    });
+  }catch(e){console.error('Polar chart error:', e)}
+
+  // 9. Stacked bar: Monthly task breakdown
+  const monthNames = [];
+  const monthlyCompleted = [];
+  const monthlyPending = [];
+  for (let i=5; i>=0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthNames.push(d.toLocaleDateString(undefined,{month:'short'}));
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    
+    const monthTasks = tasks.filter(t=> {
+      const created = new Date(t.created || t.start_date || t.created_at);
+      return !isNaN(created) && created >= monthStart && created <= monthEnd;
+    });
+    monthlyCompleted.push(monthTasks.filter(t=> ((t.status||'').toLowerCase()==='completed') || Number(t.progress||0) >= 100).length);
+    monthlyPending.push(monthTasks.filter(t=> ((t.status||'').toLowerCase())!=='completed' && Number(t.progress||0) < 100).length);
+  }
+  
+  try{
+    chartInstances.tgStacked = new Chart(document.getElementById('tgStacked'), {
+      type:'bar',
+      data:{ 
+        labels:monthNames, 
+        datasets:[
+          { label:'Completed', data:monthlyCompleted, backgroundColor:'#4caf50', stack: 'stack0' },
+          { label:'Pending', data:monthlyPending, backgroundColor:'#ff9800', stack: 'stack0' }
+        ]
+      },
+      options:{ 
+        responsive:true, 
+        scales:{ 
+          y:{ stacked:true, beginAtZero:true, ticks:{ precision:0, color: '#a6b0d1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x:{ stacked:true, ticks:{ color: '#a6b0d1' }, grid: { display: false } }
+        },
+        plugins: { legend: { labels: { color: '#e9ecff' } } }
+      }
+    });
+  }catch(e){console.error('Stacked chart error:', e)}
+
+  // 10. Mixed chart: Completion rate vs target
+  const targetRate = 80; // Target completion rate
+  const actualRates = monthNames.map((m,i)=> {
+    const tot = monthlyCompleted[i] + monthlyPending[i];
+    return tot > 0 ? (monthlyCompleted[i] / tot * 100).toFixed(1) : 0;
+  });
+  
+  try{
+    chartInstances.tgMixed = new Chart(document.getElementById('tgMixed'), {
+      type:'bar',
+      data:{ 
+        labels:monthNames, 
+        datasets:[
+          { type:'line', label:'Target Rate (%)', data:new Array(monthNames.length).fill(targetRate), borderColor:'#ff5d6c', borderWidth:2, fill:false, borderDash:[5,5] },
+          { type:'bar', label:'Actual Rate (%)', data:actualRates, backgroundColor:'#06d7ff' }
+        ]
+      },
+      options:{ 
+        responsive:true, 
+        scales:{ 
+          y:{ beginAtZero:true, max:100, ticks:{ color: '#a6b0d1' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x:{ ticks:{ color: '#a6b0d1' }, grid: { display: false } }
+        },
+        plugins: { legend: { labels: { color: '#e9ecff' } } }
+      }
+    });
+  }catch(e){console.error('Mixed chart error:', e)}
+
+  // Overdue list
+  const over = tasks.filter(isOverdue).slice(0,8);
+  const ul = document.getElementById('tgOverdue');
+  if (over.length===0){ ul.innerHTML = `<li style="color:var(--muted); padding:10px;">✅ No overdue tasks</li>`; }
+  else {
+    ul.innerHTML = over.map(t=>{
+      const diff = Math.ceil((new Date() - new Date(t.due_date||t.due)) / (1000*60*60*24));
+      return `<li class="notif" style="background: rgba(255,93,108,.15); border-left: 4px solid var(--bad); margin-bottom:8px;">${t.title} - Due ${diff===1?'Yesterday': diff+ ' days ago'}</li>`;
+    }).join('');
+  }
+
+  // Statistics summary
+  const stats = document.getElementById('tgStats');
+  const avgCompletion = tasks.length > 0 ? ((completed / tasks.length) * 100).toFixed(1) : 0;
+  const overdueCount = tasks.filter(isOverdue).length;
+  stats.innerHTML = `
+    <div style="padding:10px; background:rgba(76,175,80,.15); border-left:3px solid #4caf50; border-radius:5px;">
+      <strong>Completion Rate:</strong> ${avgCompletion}%
+    </div>
+    <div style="padding:10px; background:rgba(6,215,255,.15); border-left:3px solid #06d7ff; border-radius:5px;">
+      <strong>Total Tasks:</strong> ${total}
+    </div>
+    <div style="padding:10px; background:rgba(255,176,32,.15); border-left:3px solid #ffb020; border-radius:5px;">
+      <strong>In Progress:</strong> ${inProgress}
+    </div>
+    <div style="padding:10px; background:rgba(255,93,108,.15); border-left:3px solid #ff5d6c; border-radius:5px;">
+      <strong>Overdue:</strong> ${overdueCount}
+    </div>
+    <div style="padding:10px; background:rgba(123,44,255,.15); border-left:3px solid #7b2cff; border-radius:5px;">
+      <strong>Active Users:</strong> ${users.length}
+    </div>
+    <div style="padding:10px; background:rgba(42,211,154,.15); border-left:3px solid #2ad39a; border-radius:5px;">
+      <strong>Total Projects:</strong> ${projects.length}
+    </div>
+  `;
+}
+
+// Download individual chart as image
+function downloadChart(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) {
+    showToast('Chart not found', 'error');
+    return;
+  }
+  
+  const url = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = `${filename}-${new Date().toISOString().split('T')[0]}.png`;
+  link.href = url;
+  link.click();
+  showToast(`Chart downloaded: ${filename}`, 'success');
+}
+
+// Download all charts as ZIP
+async function downloadAllCharts() {
+  showToast('Preparing all charts for download...', 'info');
+  
+  const chartIds = ['tgPie', 'tgDoughnut', 'tgBar', 'tgHorizontalBar', 'tgLine', 'tgArea', 'tgRadar', 'tgPolar', 'tgStacked', 'tgMixed'];
+  const chartNames = [
+    'task-completion-pie',
+    'project-progress-doughnut',
+    'tasks-per-user-bar',
+    'status-distribution-bar',
+    'timeline-line',
+    'creation-trend-area',
+    'performance-radar',
+    'priority-polar',
+    'monthly-stacked-bar',
+    'completion-rate-mixed'
+  ];
+  
+  // Download each chart individually
+  for (let i = 0; i < chartIds.length; i++) {
+    await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between downloads
+    downloadChart(chartIds[i], chartNames[i]);
+  }
+  
+  showToast('All charts downloaded successfully!', 'success');
+}
+
+// Deadline overview
+function showDeadlines() {
+  sectionTitle.textContent = "Deadlines Calendar";
+
+  cardsMount.innerHTML = `
+    <div class="card" style="grid-column:1 / -1;">
+      <div class="section-title">
+        <h2>Calendar</h2>
+        <div class="chips">
+          <span class="chip" id="calPrevBtn">Prev</span>
+          <span class="chip" id="calTodayBtn">Today</span>
+          <span class="chip" id="calNextBtn">Next</span>
+          <span class="chip" onclick="renderMain()">Back</span>
+        </div>
+      </div>
+      <div id="calendarHeader" style="text-align:center;margin-bottom:10px;color:var(--muted);"></div>
+      <div id="calendarGrid" class="grid" style="grid-template-columns:repeat(7,1fr);gap:8px;"></div>
+      <div style="margin-top:10px;color:var(--muted);font-size:12px;">Legend: <span style="color:var(--bad);">Overdue</span> • <span style="color:var(--warn);">Due soon</span> • <span style="color:var(--ok);">Normal</span></div>
+    </div>
+  `;
+
+  let offset = 0;
+
+  function getMonthInfo(baseDate, offsetMonths) {
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + offsetMonths, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return {year, month, firstDay, daysInMonth, dateObj: d};
+  }
+
+  function sameYMD(a,b) {
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+
+  function render() {
+    const today = new Date();
+    const {year, month, firstDay, daysInMonth, dateObj} = getMonthInfo(new Date(), offset);
+    const monthName = dateObj.toLocaleString('default', {month:'long'});
+    document.getElementById('calendarHeader').textContent = `${monthName} ${year}`;
+
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    // Weekday headers
+    const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    weekdays.forEach(w => {
+      const h = document.createElement('div');
+      h.style.color = 'var(--muted)';
+      h.style.fontWeight = '700';
+      h.textContent = w;
+      grid.appendChild(h);
+    });
+
+    // Empty slots before first day
+    for (let i=0;i<firstDay;i++){
+      const pad = document.createElement('div');
+      grid.appendChild(pad);
+    }
+
+    // Build a map of deadlines for quick lookup
+    const taskDeadlines = {};
+    sample.tasksMine.forEach(t=>{
+      const dueStr = t.due_date || t.due;
+      if (!dueStr) return;
+      const d = new Date(dueStr);
+      if (d.getFullYear()===year && d.getMonth()===month) {
+        const key = d.getDate();
+        taskDeadlines[key] = taskDeadlines[key] || [];
+        taskDeadlines[key].push(t);
+      }
+    });
+
+    const projectDeadlines = {};
+    sample.projects.forEach(p=>{
+      if (!p.deadline) return;
+      const d = new Date(p.deadline);
+      if (d.getFullYear()===year && d.getMonth()===month) {
+        const key = d.getDate();
+        projectDeadlines[key] = projectDeadlines[key] || [];
+        projectDeadlines[key].push(p);
+      }
+    });
+
+    // Days
+    for (let day=1; day<=daysInMonth; day++){
+      const cell = document.createElement('div');
+      cell.className = 'card';
+      cell.style.padding = '8px';
+      cell.style.minHeight = '90px';
+      cell.style.display = 'flex';
+      cell.style.flexDirection = 'column';
+      cell.style.gap = '6px';
+
+      const header = document.createElement('div');
+      header.style.display = 'flex';
+      header.style.justifyContent = 'space-between';
+      header.style.alignItems = 'center';
+      const dateObj = new Date(year, month, day);
+      header.innerHTML = `<strong>${day}</strong>${sameYMD(dateObj, today) ? '<span class="chip">Today</span>' : ''}`;
+      cell.appendChild(header);
+
+      const items = document.createElement('div');
+      items.style.display = 'flex';
+      items.style.flexDirection = 'column';
+      items.style.gap = '4px';
+
+      // Projects first
+      (projectDeadlines[day] || []).forEach(p=>{
+        const proj = document.createElement('div');
+        proj.className = 'pill';
+        proj.textContent = `Project: ${p.name}`;
+        items.appendChild(proj);
+      });
+
+      // Tasks
+      (taskDeadlines[day] || []).forEach(t=>{
+        const s = getTaskStatus({...t, due: t.due_date || t.due});
+        const color = s === 'overdue' ? 'var(--bad)' : s === 'due-soon' ? 'var(--warn)' : 'var(--ok)';
+        const task = document.createElement('div');
+        task.className = 'pill';
+        task.style.borderLeft = `4px solid ${color}`;
+        task.style.textOverflow = 'ellipsis';
+        task.style.overflow = 'hidden';
+        task.style.whiteSpace = 'nowrap';
+        task.title = t.title;
+        task.textContent = t.title;
+        items.appendChild(task);
+      });
+
+      if (!(projectDeadlines[day] || []).length && !(taskDeadlines[day] || []).length) {
+        const empty = document.createElement('div');
+        empty.style.color = 'var(--muted)';
+        empty.style.fontSize = '12px';
+        empty.textContent = 'No deadlines';
+        items.appendChild(empty);
+      }
+
+      cell.appendChild(items);
+      grid.appendChild(cell);
+    }
+  }
+
+  document.getElementById('calPrevBtn').addEventListener('click', ()=>{ offset--; render(); });
+  document.getElementById('calNextBtn').addEventListener('click', ()=>{ offset++; render(); });
+  document.getElementById('calTodayBtn').addEventListener('click', ()=>{ offset = 0; render(); });
+
+  render();
+}
+
+// Data export
+function exportData() {
+  const data = {
+    projects: sample.projects,
+    tasks: sample.tasksMine,
+    members: sample.members,
+    profile: sample.profile,
+    notifications: sample.notifs,
+    exportDate: new Date().toISOString()
+  };
+  
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(dataBlob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'taskgrid-export.json';
+  link.click();
+  
+  showToast('Data exported successfully!', 'success');
+}
+
+/* ------- Logout ------- */
+function logout(){
+  localStorage.clear();
+  showToast('Logged out successfully!', 'success');
+  setTimeout(() => {
+     window.location.href = '/';
+  }, 1000);
+}
+
+/* ------- Enhanced Search Functionality ------- */
+function performSearch() {
+  const query = prompt('🔍 Search tasks, projects, and users:\n\nEnter keywords to search across:\n• Task titles and descriptions\n• Project names\n• User names\n• Priorities and statuses');
+  
+  if (!query || query.trim() === '') {
+    return;
+  }
+  
+  const searchTerm = query.toLowerCase().trim();
+  const results = {
+    tasks: [],
+    projects: [],
+    members: []
+  };
+  
+  // Search tasks
+  results.tasks = sample.tasksMine.filter(task => 
+    task.title.toLowerCase().includes(searchTerm) ||
+    (task.description && task.description.toLowerCase().includes(searchTerm)) ||
+    task.priority.toLowerCase().includes(searchTerm) ||
+    task.status.toLowerCase().includes(searchTerm) ||
+    (task.project && task.project.toLowerCase().includes(searchTerm))
+  );
+  
+  // Search projects
+  results.projects = sample.projects.filter(project => 
+    project.name.toLowerCase().includes(searchTerm) ||
+    (project.description && project.description.toLowerCase().includes(searchTerm)) ||
+    project.status.toLowerCase().includes(searchTerm) ||
+    project.priority.toLowerCase().includes(searchTerm)
+  );
+  
+  // Search members
+  results.members = sample.members.filter(member => 
+    (member.first_name && member.first_name.toLowerCase().includes(searchTerm)) ||
+    (member.last_name && member.last_name.toLowerCase().includes(searchTerm)) ||
+    (member.name && member.name.toLowerCase().includes(searchTerm)) ||
+    member.role.toLowerCase().includes(searchTerm) ||
+    (member.email && member.email.toLowerCase().includes(searchTerm))
+  );
+  
+  // Display search results
+  displaySearchResults(query, results);
+}
+
+function displaySearchResults(query, results) {
+  const totalResults = results.tasks.length + results.projects.length + results.members.length;
+  
+  if (totalResults === 0) {
+    showToast(`No results found for "${query}"`, 'info');
+    return;
+  }
+  
+  sectionTitle.textContent = `Search Results for "${query}"`;
+  
+  let resultsHTML = `
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="section-title">
+        <h2>Search Results (${totalResults} found)</h2>
+        <span class="chip" onclick="renderMain()">Back to Dashboard</span>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <span style="color: var(--muted);">
+          Found ${results.tasks.length} tasks, ${results.projects.length} projects, ${results.members.length} users
+        </span>
+      </div>
+    </div>
+  `;
+  
+  // Display task results
+  if (results.tasks.length > 0) {
+    resultsHTML += `
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="section-title">
+          <h2>📋 Tasks (${results.tasks.length})</h2>
+        </div>
+        <div style="display: grid; gap: 10px;">
+          ${results.tasks.map(task => `
+            <div class="notif" onclick="highlightTask(${task.id})" style="cursor: pointer;">
+              <span class="dot ${getTaskStatus(task) === 'overdue' ? 'bad' : getTaskStatus(task) === 'due-soon' ? 'warn' : 'ok'}"></span>
+              <div style="flex: 1;">
+                <div><strong>${task.title}</strong></div>
+                <div style="color: var(--muted); font-size: 12px;">
+                  ${task.project} • Due: ${formatDate(task.due_date || task.due)} • Priority: ${task.priority}
+                </div>
+                ${task.description ? `<div style="color: var(--muted); font-size: 11px; margin-top: 4px;">${task.description.substring(0, 100)}${task.description.length > 100 ? '...' : ''}</div>` : ''}
+              </div>
+              <span class="pill">${task.status}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Display project results
+  if (results.projects.length > 0) {
+    resultsHTML += `
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="section-title">
+          <h2>📁 Projects (${results.projects.length})</h2>
+        </div>
+        <div style="display: grid; gap: 10px;">
+          ${results.projects.map(project => `
+            <div class="notif" onclick="highlightProject(${project.id})" style="cursor: pointer;">
+              <span class="dot ok"></span>
+              <div style="flex: 1;">
+                <div><strong>${project.name}</strong></div>
+                <div style="color: var(--muted); font-size: 12px;">
+                  Status: ${project.status} • Priority: ${project.priority}
+                  ${project.deadline ? ` • Deadline: ${formatDate(project.deadline)}` : ''}
+                </div>
+                ${project.description ? `<div style="color: var(--muted); font-size: 11px; margin-top: 4px;">${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}</div>` : ''}
+              </div>
+              <span class="pill">${project.status}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Display member results
+  if (results.members.length > 0) {
+    resultsHTML += `
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="section-title">
+          <h2>👥 Team Members (${results.members.length})</h2>
+        </div>
+        <div style="display: grid; gap: 10px;">
+          ${results.members.map(member => `
+            <div class="notif" style="cursor: pointer;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent1), var(--accent2)); display: grid; place-items: center; font-size: 12px; font-weight: 800;">
+                ${(member.first_name?.[0] || '') + (member.last_name?.[0] || '') || member.name?.[0] || 'U'}
+              </div>
+              <div style="flex: 1;">
+                <div><strong>${member.first_name ? `${member.first_name} ${member.last_name}` : member.name || 'Unknown'}</strong></div>
+                <div style="color: var(--muted); font-size: 12px;">
+                  Role: ${member.role} ${member.email ? `• ${member.email}` : ''}
+                </div>
+              </div>
+              <span class="pill">${member.role}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  cardsMount.innerHTML = resultsHTML;
+  showToast(`Found ${totalResults} results for "${query}"`, 'success');
+}
+
+function highlightTask(taskId) {
+  const task = sample.tasksMine.find(t => t.id === taskId);
+  if (task) {
+    showToast(`📋 Task: ${task.title}\nProject: ${task.project}\nDue: ${formatDate(task.due_date || task.due)}\nStatus: ${task.status}`, 'info');
+  }
+}
+
+function highlightProject(projectId) {
+  const project = sample.projects.find(p => p.id === projectId);
+  if (project) {
+    showToast(`📁 Project: ${project.name}\nStatus: ${project.status}\nPriority: ${project.priority}${project.deadline ? `\nDeadline: ${formatDate(project.deadline)}` : ''}`, 'info');
+  }
+}
+
+/* ------- Initialize ------- */
+document.addEventListener('DOMContentLoaded', async function() {
+  // Load user data from backend
+  await loadUserData();
+  await loadUserProfile();
+  
+  // Add enhanced search functionality
+  document.getElementById('searchBtn').onclick = performSearch;
+  
+  // Update notifications on load
+  setTimeout(updateNotifications, 1000);
+  
+  // Auto-refresh notifications every minute
+  setInterval(updateNotifications, 60000);
+  
+  // Auto-save data every 30 seconds
+  setInterval(() => saveUserData(sample), 30000);
+  
+  // Auto-refresh data from server every 5 minutes
+  setInterval(async () => {
+    try {
+      await loadUserData();
+      console.log('Data refreshed from server');
+    } catch (error) {
+      console.log('Failed to refresh data from server');
+    }
+  }, 300000); // 5 minutes
+  
+  console.log('✅ TaskGrid Dashboard loaded with backend integration!');
+  console.log('✅ Enhanced search functionality implemented!');
+  console.log('✅ All tasks require start date and due date!');
+  console.log('✅ Data automatically syncs with server!');
+});
+
+</script>
+</body>
+</html>

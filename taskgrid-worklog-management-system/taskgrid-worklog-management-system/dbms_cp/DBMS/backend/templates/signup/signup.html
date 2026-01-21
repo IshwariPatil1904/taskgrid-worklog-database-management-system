@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskGrid Setup</title>
+  <style>
+    :root{
+      --bg:#0c1022;
+      --bg2:#0a0e1d;
+      --card:rgba(255,255,255,.06);
+      --card-deep:rgba(255,255,255,.08);
+      --muted:#a6b0d1;
+      --text:#e9ecff;
+      --accent1:#06d7ff;
+      --accent2:#7b2cff;
+      --ok:#2ad39a;
+      --warn:#ffb020;
+      --bad:#ff5d6c;
+      --ring: 0 0 0 1px rgba(255,255,255,.06) inset, 0 10px 30px rgba(0,0,0,.45);
+    }
+
+    * { box-sizing: border-box; }
+    
+    body {
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, Arial, sans-serif;
+      background: 
+        radial-gradient(1200px 600px at 70% -10%, #1a2042 0%, transparent 60%),
+        radial-gradient(900px 500px at -10% 20%, #12183a 0%, transparent 55%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Subtle starfield dots */
+    .dots{position:fixed; inset:0; pointer-events:none; opacity:.35}
+    .dots::before,.dots::after{
+      content:""; position:absolute; inset:-20%;
+      background-image:
+        radial-gradient(#8ad 1px, transparent 1px),
+        radial-gradient(#6cf 1px, transparent 1px),
+        radial-gradient(#9bf 1px, transparent 1px);
+      background-size: 120px 120px, 180px 180px, 240px 240px;
+      background-position: 0 0, 40px 60px, 100px 20px;
+      filter: blur(.2px);
+      animation: drift 60s linear infinite;
+    }
+    .dots::after{animation-duration:85s; opacity:.8}
+    @keyframes drift{to{transform:translateY(80px)}}
+
+    .container {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      padding: 40px;
+      border-radius: 24px;
+      box-shadow: var(--ring);
+      max-width: 600px;
+      width: 90%;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 24px;
+      margin: 0 auto 16px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,.1);
+      border-radius: 8px;
+      margin-bottom: 30px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      transition: width 0.4s ease;
+      border-radius: 8px;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .step-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.2);
+      transition: all 0.3s ease;
+    }
+
+    .step-dot.active {
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      transform: scale(1.2);
+    }
+
+    .step-dot.completed {
+      background: var(--ok);
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 14px 16px;
+      margin: 0;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      outline: none;
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      font-size: 15px;
+      transition: all 0.3s ease;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent1);
+      background: rgba(255,255,255,.12);
+      box-shadow: 0 0 0 3px rgba(6,215,255,.12);
+    }
+
+    input::placeholder {
+      color: var(--muted);
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    button {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      min-width: 120px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      color: white;
+      box-shadow: 0 8px 24px rgba(123,44,255,.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(123,44,255,.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,.1);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,.2);
+    }
+
+    /* Dark dropdown options */
+    select option { background-color: #12183a; color: var(--text); }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .step {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .completion-message {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .completion-message .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .save-indicator {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      padding: 6px 12px;
+      background: var(--ok);
+      color: white;
+      border-radius: 20px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .save-indicator.show {
+      opacity: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .container {
+        padding: 24px;
+        margin: 16px;
+      }
+      
+      .buttons {
+        flex-direction: column;
+      }
+      
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dots"></div>
+  
+  <div class="container">
+    <div class="save-indicator" id="saveIndicator">✅ Saved</div>
+    
+    <div class="header">
+      <div class="logo">TG</div>
+      <h1>Welcome to TaskGrid</h1>
+      <p>Set up your work log management system in just a few steps</p>
+    </div>
+
+    <div class="step-indicator">
+      <div class="step-dot active" data-step="0"></div>
+      <div class="step-dot" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- Step 1: Account Details -->
+    <div class="step active" data-step="0">
+      <h2>📝 Account Details</h2>
+      <div class="form-group">
+        <label for="name">Full Name *</label>
+        <input type="text" id="name" placeholder="Enter your full name" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email Address *</label>
+        <input type="email" id="email" placeholder="Enter your email address" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password *</label>
+        <input type="password" id="password" placeholder="Create a secure password (min 6 characters)" required>
+      </div>
+    </div>
+
+    <!-- Step 2: Workspace Setup -->
+    <div class="step" data-step="1">
+      <h2>🏢 Workspace Setup</h2>
+      <div class="form-group">
+        <label for="workspace">Workspace Name *</label>
+        <input type="text" id="workspace" placeholder="Enter your workspace name" required>
+      </div>
+      <div class="form-group">
+        <label for="teamSize">Team Size</label>
+        <input type="number" id="teamSize" placeholder="How many people in your team?" min="1" max="1000">
+      </div>
+      <div class="form-group">
+        <label for="role">Your Role *</label>
+        <select id="role" required>
+          <option value="">Select your role</option>
+          <option value="admin">Admin - Full system access</option>
+          <option value="manager">Manager - Project and team management</option>
+          <option value="member">Team Member - Task management</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Step 3: Completion -->
+    <div class="step" data-step="2">
+      <div class="completion-message">
+        <div class="icon">🎉</div>
+        <h2>Setup Complete!</h2>
+        <p>Your TaskGrid workspace is ready. You can now start managing projects, tracking tasks, and logging work hours efficiently.</p>
+        <div style="margin-top: 20px; padding: 16px; background: rgba(6,215,255,.1); border-radius: 12px; border: 1px solid rgba(6,215,255,.2);">
+          <strong>What's next?</strong>
+          <ul style="text-align: left; margin: 8px 0 0 0; padding-left: 20px;">
+            <li>Create your first project</li>
+            <li>Add tasks with deadlines</li>
+            <li>Invite team members</li>
+            <li>Start tracking work logs</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button type="button" id="prev" class="btn-secondary" disabled>← Previous</button>
+      <button type="button" id="save" class="btn-ghost">💾 Save & Continue Later</button>
+      <button type="button" id="next" class="btn-primary">Next →</button>
+    </div>
+  </div>
+
+
+  <script>
+    // Configuration
+    const API_BASE_URL = window.location.origin;
+    const __token = localStorage.getItem('taskgrid_token');
+if (__token) {
+  window.location.href = '/dashboard';
+}
+    
+    // Utility functions
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 10000;
+        background: ${type === 'success' ? '#2ad39a' : type === 'error' ? '#ff5d6c' : type === 'warn' ? '#ffb020' : '#06d7ff'};
+        color: white; padding: 12px 20px; border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateX(100%);
+        transition: transform 0.3s ease; max-width: 400px; font-family: inherit;
+      `;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.style.transform = 'translateX(0)', 100);
+      setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function setLoading(button, isLoading) {
+      if (isLoading) {
+        button.disabled = true;
+        button.dataset.originalText = button.textContent;
+        button.textContent = '⏳ Loading...';
+      } else {
+        button.disabled = false;
+        button.textContent = button.dataset.originalText || 'Next →';
+      }
+    }
+
+    function showSaveIndicator() {
+      const indicator = document.getElementById('saveIndicator');
+      indicator.classList.add('show');
+      setTimeout(() => indicator.classList.remove('show'), 2000);
+    }
+
+    // Main setup logic
+    const steps = document.querySelectorAll(".step");
+    const progress = document.getElementById("progress");
+    const nextBtn = document.getElementById("next");
+    const prevBtn = document.getElementById("prev");
+    const saveBtn = document.getElementById("save");
+    const stepDots = document.querySelectorAll(".step-dot");
+    let currentStep = 0;
+
+    // Save data to localStorage
+    function saveData() {
+      const data = {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        workspace: document.getElementById("workspace").value,
+        teamSize: document.getElementById("teamSize").value,
+        role: document.getElementById("role").value,
+        step: currentStep,
+        savedAt: new Date().toISOString()
+      };
+      
+      try {
+        localStorage.setItem("taskgridSetup", JSON.stringify(data));
+        showToast("✅ Progress saved! You can continue later.", 'success');
+        showSaveIndicator();
+        console.log('✅ Data saved successfully:', data);
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to save data:', error);
+        showToast("❌ Failed to save progress. Please try again.", 'error');
+        return false;
+      }
+    }
+
+    // Load data from localStorage
+    function loadData() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("taskgridSetup") || '{}');
+        if (saved && Object.keys(saved).length > 0) {
+          document.getElementById("name").value = saved.name || "";
+          document.getElementById("email").value = saved.email || "";
+          document.getElementById("password").value = saved.password || "";
+          document.getElementById("workspace").value = saved.workspace || "";
+          document.getElementById("teamSize").value = saved.teamSize || "";
+          document.getElementById("role").value = saved.role || "";
+          currentStep = saved.step || 0;
+          console.log('✅ Data loaded successfully:', saved);
+          showToast("📋 Previous progress restored!", 'info');
+        }
+      } catch (error) {
+        console.error('❌ Failed to load data:', error);
+      }
+    }
+
+    function updateStep() {
+      // Update step visibility
+      steps.forEach((step, index) => {
+        step.classList.toggle("active", index === currentStep);
+      });
+      
+      // Update progress bar
+      progress.style.width = ((currentStep) / (steps.length - 1)) * 100 + "%";
+      
+      // Update step dots
+      stepDots.forEach((dot, index) => {
+        dot.classList.toggle("active", index === currentStep);
+        dot.classList.toggle("completed", index < currentStep);
+      });
+      
+      // Update buttons
+      prevBtn.disabled = currentStep === 0;
+      nextBtn.textContent = currentStep === steps.length - 1 ? "🚀 Finish Setup" : "Next →";
+      nextBtn.dataset.originalText = nextBtn.textContent;
+      
+      // Auto-save progress when step changes
+      if (currentStep > 0) {
+        saveData();
+      }
+    }
+
+    // Validate current step
+    function validateStep() {
+      if (currentStep === 0) {
+        const name = document.getElementById("name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        if (!name) {
+          showToast("Please enter your full name", 'error');
+          document.getElementById("name").focus();
+          return false;
+        }
+        if (!email || !isValidEmail(email)) {
+          showToast("Please enter a valid email address", 'error');
+          document.getElementById("email").focus();
+          return false;
+        }
+        if (!password || password.length < 6) {
+          showToast("Password must be at least 6 characters long", 'error');
+          document.getElementById("password").focus();
+          return false;
+        }
+      } else if (currentStep === 1) {
+        const workspace = document.getElementById("workspace").value.trim();
+        const role = document.getElementById("role").value;
+
+        if (!workspace) {
+          showToast("Please enter a workspace name", 'error');
+          document.getElementById("workspace").focus();
+          return false;
+        }
+        if (!role) {
+          showToast("Please select your role", 'error');
+          document.getElementById("role").focus();
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Register user with backend
+    async function registerUser() {
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const workspace = document.getElementById("workspace").value.trim();
+      const role = document.getElementById("role").value.toLowerCase();
+
+      // Split name into first and last name
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const userData = {
+        username: email.split('@')[0], // Use email prefix as username
+        email: email,
+        password: password,
+        first_name: firstName,
+        last_name: lastName,
+        role: role === 'member' ? 'team_member' : role.toLowerCase()
+      };
+
+      try {
+        setLoading(nextBtn, true);
+        
+        // Try to register with API
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(userData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          // Immediately login after successful registration
+          try {
+            const loginResp = await fetch(`${API_BASE_URL}/auth/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: userData.username, password: userData.password })
+            });
+            const loginData = await loginResp.json();
+            if (!loginResp.ok || !loginData.access_token) {
+              throw new Error(loginData.error || 'Auto login failed');
+            }
+
+            localStorage.setItem('taskgrid_token', loginData.access_token);
+            localStorage.setItem('taskgrid_user', JSON.stringify({ ...loginData.user, workspace }));
+            localStorage.removeItem("taskgridSetup");
+
+            showToast("✅ Registration successful! Logging you in...", 'success');
+           setTimeout(() => {
+  window.location.href = '/dashboard';
+}, 1500);
+
+          } catch (e) {
+            showToast("Account created. Please login.", 'info');
+           setTimeout(() => { window.location.href = '/login'; }, 1200);
+          }
+        } else {
+          throw new Error(result.error || 'Registration failed');
+        }
+        
+      } catch (error) {
+        console.error('Registration failed:', error);
+        showToast("❌ Registration failed: " + (error.message || 'Server error'), 'error');
+      } finally {
+        setLoading(nextBtn, false);
+      }
+    }
+
+    // Event listeners
+    nextBtn.addEventListener("click", async () => {
+      if (!validateStep()) {
+        return;
+      }
+
+      // Save progress before moving to next step
+      saveData();
+
+      if (currentStep < steps.length - 1) {
+        currentStep++;
+        updateStep();
+      } else {
+        // Final step - register user
+        await registerUser();
+      }
+    });
+
+    prevBtn.addEventListener("click", () => {
+      if (currentStep > 0) {
+        currentStep--;
+        updateStep();
+      }
+    });
+
+    saveBtn.addEventListener("click", () => {
+      if (saveData()) {
+        // Optionally redirect to login page
+        const shouldRedirect = confirm("Progress saved! Would you like to go to the login page?");
+        if (shouldRedirect) {
+          window.location.href = '/login';
+        }
+      }
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      updateStep();
+      
+      // Auto-save every 30 seconds
+      setInterval(() => {
+        if (document.getElementById("name").value.trim() || 
+            document.getElementById("email").value.trim()) {
+          saveData();
+        }
+      }, 30000);
+    });
+
+    // Add Enter key support
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !nextBtn.disabled) {
+        nextBtn.click();
+      }
+    });
+
+    // Auto-save when user types (debounced)
+    let autoSaveTimeout;
+    ['name', 'email', 'password', 'workspace', 'teamSize'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('input', () => {
+          clearTimeout(autoSaveTimeout);
+          autoSaveTimeout = setTimeout(() => {
+            if (element.value.trim()) {
+              saveData();
+            }
+          }, 2000);
+        });
+      }
+    });
+
+    // Auto-save when role changes
+    document.getElementById('role').addEventListener('change', () => {
+      if (document.getElementById('role').value) {
+        saveData();
+      }
+    });
+
+    console.log('✅ TaskGrid Signup page loaded');
+    console.log('✅ Save & Continue functionality is working');
+    console.log('✅ Auto-save enabled every 30 seconds');
+  </script>
+</body>
+</html>

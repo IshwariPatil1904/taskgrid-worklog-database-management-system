@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Details - TaskGrid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .project-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-in-progress {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab:hover {
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .task-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: box-shadow 0.3s;
+        }
+        
+        .task-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        
+        .task-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .task-meta {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 25px;
+            background: #e0e0e0;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        .subtask-list {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .subtask-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        
+        .subtask-info {
+            flex: 1;
+        }
+        
+        .subtask-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .subtask-meta {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .work-uploads {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .work-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .work-info {
+            flex: 1;
+        }
+        
+        .work-file {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .work-desc {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .work-date {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .work-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            background: #218838;
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background: #c82333;
+        }
+        
+        .btn-view {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-view:hover {
+            background: #5568d3;
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #667eea;
+            color: #667eea;
+        }
+        
+        .btn-ghost:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .approval-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .approval-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .approval-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .approval-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .priority-high {
+            color: #dc3545;
+        }
+        
+        .priority-medium {
+            color: #ffc107;
+        }
+        
+        .priority-low {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+        
+        <div class="header">
+            <div>
+                <h1 id="projectTitle">Loading...</h1>
+                <div id="projectDescription" style="color: #666; margin-top: 5px;"></div>
+            </div>
+        </div>
+        
+        <div id="alert" class="alert"></div>
+        
+        <div class="project-info" id="projectInfo">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading project details...</p>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('tasks')">Main Tasks</button>
+            <button class="tab" onclick="switchTab('subtasks')">Subtasks & Work</button>
+            <button class="tab" onclick="switchTab('timeline')">Timeline</button>
+        </div>
+        
+        <div id="tasks-content" class="tab-content active">
+            <!-- Main tasks will be loaded here -->
+        </div>
+        
+        <div id="subtasks-content" class="tab-content">
+            <!-- Subtasks and work uploads will be loaded here -->
+        </div>
+        
+        <div id="timeline-content" class="tab-content">
+            <!-- Timeline will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:5000/data';
+        let projectId = null;
+        
+        // Get token
+        function getToken() {
+            return localStorage.getItem('token') || localStorage.getItem('taskgrid_token');
+        }
+        
+        // Show alert
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert ${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Switch tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-content`).classList.add('active');
+        }
+        
+        // Load project details
+        async function loadProjectDetails() {
+            const urlParams = new URLSearchParams(window.location.search);
+            projectId = urlParams.get('id');
+            
+            if (!projectId) {
+                showAlert('Project ID not specified', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/projects/${projectId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to load project');
+                
+                const data = await response.json();
+                const project = data.project;
+                
+                document.getElementById('projectTitle').textContent = project.name;
+                document.getElementById('projectDescription').textContent = project.description || 'No description';
+                
+                // Display project info
+                const projectInfo = document.getElementById('projectInfo');
+                projectInfo.innerHTML = `
+                    <div class="info-item">
+                        <span class="info-label">Status</span>
+                        <span class="info-value">
+                            <span class="status-badge status-${project.status}">${project.status || 'pending'}</span>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Start Date</span>
+                        <span class="info-value">${project.start_date || 'Not set'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">End Date</span>
+                        <span class="info-value">${project.end_date || 'Not set'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Created By</span>
+                        <span class="info-value">${project.created_by_name || 'Unknown'}</span>
+                    </div>
+                `;
+                
+                loadTasks();
+                loadSubtasksAndWork();
+                
+            } catch (error) {
+                showAlert('Error loading project: ' + error.message, 'error');
+            }
+        }
+        
+        // Load main tasks
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${API_BASE}/tasks?project_id=${projectId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to load tasks');
+                
+                const data = await response.json();
+                const tasks = data.tasks.filter(t => !t.is_subtask);
+                
+                const container = document.getElementById('tasks-content');
+                
+                if (tasks.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>No tasks found for this project</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = tasks.map(task => `
+                    <div class="task-card">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">${task.title}</div>
+                                <div class="task-meta">
+                                    <span class="meta-item">
+                                        <strong>Assigned to:</strong> ${task.assigned_to_username || 'Unassigned'}
+                                    </span>
+                                    <span class="meta-item priority-${task.priority || 'medium'}">
+                                        <strong>Priority:</strong> ${task.priority || 'medium'}
+                                    </span>
+                                    <span class="meta-item">
+                                        <strong>Due:</strong> ${task.due_date || 'No deadline'}
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="status-badge status-${task.status}">${task.status || 'pending'}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${task.progress || 0}%">
+                                ${task.progress || 0}%
+                            </div>
+                        </div>
+                        ${task.description ? `<p style="color: #666; margin-top: 10px;">${task.description}</p>` : ''}
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+        
+        // Load subtasks and work uploads
+        async function loadSubtasksAndWork() {
+            try {
+                // Get all tasks for this project
+                const tasksResponse = await fetch(`${API_BASE}/tasks?project_id=${projectId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                
+                if (!tasksResponse.ok) throw new Error('Failed to load tasks');
+                
+                const tasksData = await tasksResponse.json();
+                const mainTasks = tasksData.tasks.filter(t => !t.is_subtask);
+                
+                const container = document.getElementById('subtasks-content');
+                let html = '';
+                
+                for (const task of mainTasks) {
+                    // Get subtasks for this task
+                    const subtasksResponse = await fetch(`${API_BASE}/tasks/${task._id}/subtasks`, {
+                        headers: {
+                            'Authorization': `Bearer ${getToken()}`
+                        }
+                    });
+                    
+                    if (subtasksResponse.ok) {
+                        const subtasksData = await subtasksResponse.json();
+                        const subtasks = subtasksData.subtasks || [];
+                        
+                        if (subtasks.length > 0) {
+                            html += `
+                                <div class="task-card">
+                                    <h3 style="margin-bottom: 15px; color: #667eea;">📋 ${task.title}</h3>
+                                    <div class="subtask-list">
+                            `;
+                            
+                            for (const subtask of subtasks) {
+                                html += `
+                                    <div class="subtask-item">
+                                        <div class="subtask-info">
+                                            <div class="subtask-title">${subtask.title}</div>
+                                            <div class="subtask-meta">
+                                                Assigned to: <strong>${subtask.assigned_to_username || 'Unknown'}</strong> | 
+                                                Percentage: <strong>${subtask.percentage || 0}%</strong> | 
+                                                Status: <strong>${subtask.status || 'assigned'}</strong>
+                                            </div>
+                                            ${subtask.work_uploads && subtask.work_uploads.length > 0 ? `
+                                                <div class="work-uploads">
+                                                    <h4 style="margin: 10px 0 5px 0; font-size: 14px;">Work Uploads:</h4>
+                                                    ${subtask.work_uploads.map(work => `
+                                                        <div class="work-item">
+                                                            <div class="work-info">
+                                                                <div class="work-file">📎 ${work.file_path || 'No file'}</div>
+                                                                <div class="work-desc">${work.description || 'No description'}</div>
+                                                                <div class="work-date">Uploaded: ${work.submitted_at || 'Unknown'}</div>
+                                                                <div class="work-date">
+                                                                    Approval: <span class="approval-badge approval-${work.approval_status || 'pending'}">${work.approval_status || 'pending'}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="work-actions">
+                                                                ${work.file_path ? `<button class="btn btn-view" onclick="viewFile('${work.file_path}')">View File</button>` : ''}
+                                                                ${work.approval_status === 'pending' || !work.approval_status ? `
+                                                                    <button class="btn btn-approve" onclick="approveWork('${subtask._id}', '${work._id}')">Approve</button>
+                                                                    <button class="btn btn-reject" onclick="rejectWork('${subtask._id}', '${work._id}')">Reject</button>
+                                                                ` : ''}
+                                                            </div>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            ` : '<p style="font-size: 13px; color: #999; margin-top: 10px;">No work uploaded yet</p>'}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            
+                            html += `
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+                
+                if (html === '') {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <p>No subtasks or work uploads found for this project</p>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = html;
+                }
+                
+            } catch (error) {
+                console.error('Error loading subtasks:', error);
+            }
+        }
+        
+        // Approve work
+        async function approveWork(subtaskId, workId) {
+            if (!confirm('Approve this work submission?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/subtasks/${subtaskId}/work/${workId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to approve work');
+                
+                showAlert('Work approved successfully!', 'success');
+                loadSubtasksAndWork();
+                
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+        
+        // Reject work
+        async function rejectWork(subtaskId, workId) {
+            const reason = prompt('Enter reason for rejection:');
+            if (!reason) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/subtasks/${subtaskId}/work/${workId}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                
+                if (!response.ok) throw new Error('Failed to reject work');
+                
+                showAlert('Work rejected', 'success');
+                loadSubtasksAndWork();
+                
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+        
+        // View file
+        function viewFile(filePath) {
+            window.open(`/uploads/${filePath}`, '_blank');
+        }
+        
+        // Initialize
+        window.onload = () => {
+            if (!getToken()) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            loadProjectDetails();
+        };
+    </script>
+</body>
+</html>

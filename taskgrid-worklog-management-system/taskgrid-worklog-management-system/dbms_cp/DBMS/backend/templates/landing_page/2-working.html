@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TaskGrid — Synchronize. Collaborate. Achieve.</title>
+  <meta name="color-scheme" content="light dark" />
+  <style>
+    /* ---------------------- Reset & Base ---------------------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    * { margin: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,Inter,Ubuntu,"Helvetica Neue",Arial;
+      background: var(--bg);
+      color: var(--text);
+      transition: background .3s ease, color .3s ease;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ---------------------- Theme Tokens ---------------------- */
+    :root{
+      --bg: #0b1020;
+      --surface: rgba(255,255,255,.06);
+      --text: #eef2ff;
+      --muted: #c7d2fe;
+      --border: rgba(255,255,255,.12);
+      --brandA: #06b6d4; /* teal */
+      --brandB: #8b5cf6; /* violet */
+      --grad: linear-gradient(90deg, var(--brandA), var(--brandB));
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --glass: rgba(13,18,40,.45);
+      --glassBlur: 14px;
+    }
+    body.light{
+      --bg: #f8fafc;
+      --surface: rgba(0,0,0,.04);
+      --text: #0b1020;
+      --muted: #334155;
+      --border: rgba(0,0,0,.08);
+      --shadow: 0 8px 20px rgba(2,6,23,.08);
+      --glass: rgba(255,255,255,.65);
+      --glassBlur: 10px;
+    }
+
+    a{ color: inherit; text-decoration: none; }
+    .container{ width: min(1200px, 92vw); margin: 0 auto; }
+
+    /* ---------------------- Background Canvas ---------------------- */
+    #bgCanvas{
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      z-index: -1;
+    }
+    .radial{
+      position: fixed; inset: -10%;
+      background:
+        radial-gradient(60vw 60vw at 20% 10%, rgba(6,182,212,.15), transparent 60%),
+        radial-gradient(50vw 50vw at 80% 20%, rgba(139,92,246,.14), transparent 60%),
+        radial-gradient(70vw 70vw at 50% 90%, rgba(99,102,241,.12), transparent 60%);
+      pointer-events: none;
+      z-index: -2;
+    }
+
+    /* ---------------------- Navbar ---------------------- */
+    .nav{
+      position: fixed; inset: 0 0 auto 0;
+      backdrop-filter: blur(var(--glassBlur));
+      background: var(--glass);
+      border-bottom: 1px solid var(--border);
+      z-index: 50;
+    }
+    .nav-wrap{
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .9rem 0;
+    }
+    .brand{
+      display: flex; align-items: center; gap: .7rem; font-weight: 800; letter-spacing: .2px;
+      cursor: pointer;
+    }
+    .brand-badge{
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--grad);
+      box-shadow: 0 6px 20px rgba(6,182,212,.35), 0 6px 20px rgba(139,92,246,.25) inset;
+    }
+    .nav-links{
+      display: flex; align-items: center; gap: 1.2rem; font-weight: 600;
+    }
+    .nav-links a{
+      color: var(--muted);
+      padding: .35rem .6rem; border-radius: .6rem;
+      transition: color .25s ease, background .25s ease;
+      cursor: pointer;
+    }
+    .nav-links a:hover{ color: var(--text); background: var(--surface); }
+    .toggle{
+      margin-left: .4rem; font-size: 1.1rem; cursor: pointer;
+      padding:.4rem .55rem; border-radius:.6rem; border:1px solid var(--border); background: var(--surface);
+    }
+
+    /* ---------------------- Sections ---------------------- */
+    section{ padding: 96px 0; }
+    .hero{ padding-top: 140px; }
+
+    .hero-grid{
+      display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(24px, 4vw, 48px);
+      align-items: center;
+    }
+    .kicker{ color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .82rem; margin-bottom: .8rem;}
+    .display{
+      font-size: clamp(34px, 6vw, 60px); line-height: 1.05; font-weight: 900; letter-spacing: -.02em;
+      margin-bottom: 14px;
+    }
+    .display .grad{ background: var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .lead{ color: var(--muted); font-size: clamp(16px, 2.2vw, 18px); max-width: 52ch; }
+
+    .cta-row{ display:flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+    .btn{
+      border: none; cursor:pointer; font-weight:700; border-radius: 12px; padding: 12px 18px;
+      transition: transform .18s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .btn-primary{
+      background: var(--grad); color: white;
+      box-shadow: 0 10px 24px rgba(6,182,212,.25), 0 10px 24px rgba(139,92,246,.18);
+    }
+    .btn-primary:hover{ transform: translateY(-1px) scale(1.02); }
+    .btn-secondary{
+      background: transparent; color: var(--text); border: 1px solid var(--border);
+    }
+    .btn-secondary:hover{ background: var(--surface); }
+
+    .hero-card{
+      border:1px solid var(--border); border-radius: 18px; overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)) ;
+      backdrop-filter: blur(10px); box-shadow: var(--shadow);
+      aspect-ratio: 16/10; display:grid; place-items:center; position:relative;
+    }
+    .hero-card .ring{
+      position:absolute; inset:auto -30% -30% auto; width:60%; height:60%; border-radius:50%;
+      background: radial-gradient(closest-side, rgba(6,182,212,.26), transparent 70%);
+      filter: blur(20px);
+    }
+    .hero-card .dot{
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--grad); box-shadow: 0 20px 50px rgba(6,182,212,.35);
+      display:grid; place-items:center; color:white; font-weight:900;
+    }
+    .hero-card small{ color: var(--muted); position:absolute; bottom:10px; right:12px; }
+
+    /* Learn More (Features) */
+    .features{
+      display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px;
+      margin-top: 28px;
+    }
+    .feature{
+      border:1px solid var(--border); border-radius:16px; padding:18px; background: var(--surface);
+      display:flex; gap:12px; align-items:flex-start;
+    }
+    .ic{
+      width: 38px; height: 38px; border-radius:10px; background: var(--grad);
+      display:grid; place-items:center; font-weight:800; color:white; flex: 0 0 auto;
+    }
+    .feature h4{ margin-bottom: 6px; }
+
+    /* Preview */
+    .preview{
+      border:1px solid var(--border); border-radius:18px; padding:14px; background: var(--surface);
+      display:grid; grid-template-columns: 1.2fr .8fr; gap:16px; align-items:center;
+    }
+    .preview .shot{
+      aspect-ratio: 16/9; border-radius:12px; background:
+        linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0)),
+        linear-gradient(45deg, var(--brandA), var(--brandB));
+      position:relative; overflow:hidden; cursor: pointer;
+    }
+    .preview .shot::after{
+      content:""; position:absolute; inset:0; background: radial-gradient(40% 40% at 80% 20%, rgba(139,92,246,.18), transparent 60%);
+    }
+    .preview .play{
+      position:absolute; inset:auto auto 12px 12px;
+      background: var(--grad); color:white; border:none; border-radius:12px; padding:10px 14px; cursor:pointer;
+      box-shadow: 0 8px 22px rgba(6,182,212,.24), 0 8px 22px rgba(139,92,246,.16);
+    }
+    .preview .copy p{ color:var(--muted); margin-top:6px; }
+
+    /* FAQ */
+    .faq{ display:grid; gap:12px; }
+    details{
+      border:1px solid var(--border); border-radius:12px; padding:14px; background: var(--surface);
+    }
+    summary{ cursor:pointer; font-weight:700; }
+    details p{ color: var(--muted); padding-top:8px; }
+
+    /* CTA Footer */
+    .cta{
+      text-align:center; border:1px solid var(--border); border-radius:18px; padding:36px; background: var(--surface);
+    }
+
+    /* Footer */
+    footer{ padding: 40px 0; color: var(--muted); }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .hero-grid, .preview{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px){
+      .features{ grid-template-columns: 1fr; }
+      .nav-links{ display:none; } /* keep it simple for demo */
+    }
+
+    /* ---------------------- Modal (Auth & Video) ---------------------- */
+    .modal{
+      position: fixed; inset:0; display:none; place-items:center;
+      background: rgba(0,0,0,.6); z-index: 60; padding: 20px;
+    }
+    .modal.show{ display:grid; }
+    .sheet{
+      width: min(720px, 96vw); border:1px solid var(--border); border-radius:16px; background: var(--bg);
+      box-shadow: var(--shadow); overflow:hidden;
+    }
+    .sheet-head{
+      display:flex; justify-content:space-between; align-items:center; padding:14px 16px;
+      background: var(--surface); border-bottom:1px solid var(--border);
+    }
+    .close{ border:none; background:transparent; color:var(--muted); font-size:20px; cursor:pointer; }
+    .sheet-body{ padding:18px; }
+    .tabs{ display:flex; gap:8px; margin-bottom:12px; }
+    .tab{ border:1px solid var(--border); background:transparent; color:var(--text); padding:8px 12px; border-radius:10px; cursor:pointer; }
+    .tab.active{ background: var(--grad); color:white; border-color: transparent; }
+    .form{ display:grid; gap:10px; margin-top:6px; }
+    .form input{
+      padding: 10px 12px; border-radius:10px; border:1px solid var(--border); background: transparent; color: var(--text);
+    }
+    .form small{ color: var(--muted); }
+
+    .video-frame{ width:100%; aspect-ratio:16/9; border:0; border-radius:12px; }
+
+    /* Toast Notifications */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #333;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 10000;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      max-width: 400px;
+      backdrop-filter: blur(10px);
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { border-left: 4px solid #10b981; }
+    .toast.error { border-left: 4px solid #ef4444; }
+    .toast.warning { border-left: 4px solid #f59e0b; }
+    .toast.info { border-left: 4px solid #3b82f6; }
+
+    /* Loading state */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Backgrounds -->
+  <canvas id="bgCanvas" aria-hidden="true"></canvas>
+  <div class="radial" aria-hidden="true"></div>
+
+  <!-- Nav -->
+  <div class="nav">
+    <div class="container nav-wrap">
+      <div class="brand" onclick="scrollToSection('home')">
+        <span class="brand-badge"></span> TaskGrid
+      </div>
+      <div class="nav-links">
+        <a href="#home" onclick="scrollToSection('home')">Home</a>
+        <a href="#learn" onclick="scrollToSection('learn')">About</a>
+        <a href="#contact" onclick="scrollToSection('contact')">Contact</a>
+        <a href="/login">Login</a>
+        <a href="/register">Sign Up</a>
+        <button id="modeToggle" class="toggle" aria-label="Toggle dark/light">🌙</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <section id="home" class="hero">
+    <div class="container hero-grid">
+      <div>
+        <div class="kicker">TaskGrid — Synchronize. Collaborate. Achieve.</div>
+        <h1 class="display">
+          Keep teams in <span class="grad">lock-step</span> across tasks, sprints, and goals.
+        </h1>
+        <p class="lead">
+          Plan, assign, and track work in real-time. TaskGrid brings collaboration, notifications, and delightful micro-interactions together so nothing slips.
+        </p>
+        <div class="cta-row">
+          <button class="btn btn-primary" id="getStarted">Get Started →</button>
+          <button class="btn btn-secondary" onclick="scrollToSection('learn')">Learn More</button>
+          <button class="btn btn-secondary" onclick="scrollToSection('contact')">Contact</button>
+        </div>
+      </div>
+
+      <div class="hero-card" onclick="openDashboard()">
+        <div class="dot">TG</div>
+        <div class="ring"></div>
+        <small>Live sync · Kanban · Timelines</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- Learn More -->
+  <section id="learn">
+    <div class="container">
+      <h2 class="display" style="font-size: clamp(28px,4vw,42px); margin-bottom:10px;">
+        Built for high-velocity collaboration
+      </h2>
+      <p class="lead">Stay aligned with real-time updates, shared views, and automation that remove busywork.</p>
+
+      <div class="features">
+        <div class="feature" onclick="showFeatureDetail('Real-time Sync')">
+          <div class="ic">⚡</div>
+          <div>
+            <h4>Real-time Sync</h4>
+            <p class="lead" style="font-size:15px;">Edits appear instantly across your team — no refresh required.</p>
+          </div>
+        </div>
+        <div class="feature" onclick="showFeatureDetail('Flexible Workflows')">
+          <div class="ic">🧩</div>
+          <div>
+            <h4>Flexible Workflows</h4>
+            <p class="lead" style="font-size:15px;">Boards, lists, timelines, and custom fields that match your process.</p>
+          </div>
+        </div>
+        <div class="feature" onclick="showFeatureDetail('Smart Notifications')">
+          <div class="ic">🔔</div>
+          <div>
+            <h4>Smart Notifications</h4>
+            <p class="lead" style="font-size:15px;">Only what matters — threaded, actionable, and noise-aware.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Preview -->
+  <section>
+    <div class="container preview">
+      <div class="shot" id="openVideo">
+        <button class="play">▶ Watch Demo</button>
+      </div>
+      <div class="copy">
+        <h3 class="display" style="font-size: clamp(24px,3.4vw,34px); margin-bottom:6px;">
+          A single source of truth for your work
+        </h3>
+        <p>See projects across squads, drill into sprints, and keep leadership in the loop with status pages and auto-generated reports.</p>
+        <div class="cta-row" style="margin-top:14px;">
+          <button class="btn btn-primary" id="getStarted2">Get Started →</button>
+          <button class="btn btn-secondary" onclick="scrollToSection('learn')">Explore Features</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section>
+    <div class="container">
+      <h2 class="display" style="font-size: clamp(28px,4vw,42px); margin-bottom:12px;">FAQs</h2>
+      <div class="faq">
+        <details>
+          <summary>Can TaskGrid replace my current task tool?</summary>
+          <p>Yes. Import from CSV/Jira/Trello, map fields, and keep IDs for clean handover.</p>
+        </details>
+        <details>
+          <summary>Does it work for remote teams?</summary>
+          <p>Absolutely — comments, live cursors, presence, and timezone-smart due dates are included.</p>
+        </details>
+        <details>
+          <summary>Is there a free plan?</summary>
+          <p>We offer a generous free tier for small teams. Upgrade only when you need more seats or automation.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section>
+    <div class="container cta">
+      <h3 class="display" style="font-size: clamp(26px,3.6vw,38px); margin-bottom:10px;">Ready to get started?</h3>
+      <p class="lead">Create your workspace in seconds — invite your team when you're ready.</p>
+      <div class="cta-row" style="justify-content:center; margin-top:16px;">
+        <button class="btn btn-primary" id="getStarted3">Create Free Account</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact / Footer -->
+  <section id="contact">
+    <div class="container">
+      <div class="features" style="grid-template-columns: 1fr 1fr;">
+        <div class="feature">
+          <div class="ic">✉️</div>
+          <div>
+            <h4>Contact</h4>
+            <p class="lead" style="font-size:15px;">hello@taskgrid.app</p>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="ic">🔐</div>
+          <div>
+            <h4>Privacy</h4>
+            <p class="lead" style="font-size:15px;">We never sell data. SSO and SAML available on paid plans.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>© <span id="year"></span> TaskGrid</div>
+      <div style="display:flex; gap:16px;">
+        <a href="#learn" onclick="scrollToSection('learn')">About</a>
+        <a href="#contact" onclick="scrollToSection('contact')">Contact</a>
+        <a href="/profile">Profile</a>
+        <a href="/project">Projects</a>
+
+      </div>
+    </div>
+  </footer>
+
+  <!-- Auth Modal -->
+  <div class="modal" id="authModal" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="sheet-head">
+        <strong id="authTitle">Welcome to TaskGrid</strong>
+        <button class="close" onclick="closeModal('authModal')">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('login')">Login</button>
+          <button class="tab" onclick="switchTab('signup')">Signup</button>
+        </div>
+        <div id="panel-login" class="form">
+          <input type="text" id="loginUsername" placeholder="Username" />
+          <input type="password" id="loginPassword" placeholder="Password" />
+          <button class="btn btn-primary" id="loginBtn">Login</button>
+          <small>Default: admin / admin123</small>
+        </div>
+        <div id="panel-signup" class="form" style="display:none;">
+          <p>Create your account with our setup wizard</p>
+          <button class="btn btn-primary" id="signupBtn">Start Setup</button>
+          <small>By continuing, you agree to our terms.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Modal -->
+  <div class="modal" id="videoModal" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="vidTitle">
+      <div class="sheet-head">
+        <strong id="vidTitle">TaskGrid Demo</strong>
+        <button class="close" onclick="closeModal('videoModal')">✕</button>
+      </div>
+      <div class="sheet-body">
+        <iframe id="videoFrame" class="video-frame"
+          src=""
+          title="TaskGrid Demo"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include configuration and API helper -->
+<script src="./js/config.js"></script>
+<script src="./js/api.js"></script>
+
+  
+  <script>
+    
+    /* ------------------------- Configuration ------------------------- */
+    const API_BASE_URL = window.location.origin;
+
+    /* ------------------------- Utils ------------------------- */
+    const $ = (q, root=document) => root.querySelector(q);
+    const $$ = (q, root=document) => Array.from(root.querySelectorAll(q));
+
+    /* ------------------------- Toast Notifications ------------------------- */
+    function showToast(message, type = 'info') {
+      // Remove existing toasts
+      const existingToasts = document.querySelectorAll('.toast');
+      existingToasts.forEach(toast => toast.remove());
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.classList.add('show'), 100);
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+
+    /* ------------------------- Navigation Functions ------------------------- */
+    function scrollToSection(sectionId) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+   function openDashboard() {
+     window.location.href = '/dashboard';
+    }
+
+
+    function showFeatureDetail(feature) {
+      showToast(`Learn more about ${feature} - Coming soon!`, 'info');
+    }
+
+    /* ------------------------- Modal Functions ------------------------- */
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      if (modalId === 'videoModal') {
+        $('#videoFrame').src = '';
+      }
+    }
+
+    function switchTab(tabName) {
+      // Update tab buttons
+      $$('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Show/hide panels
+      const loginPanel = $('#panel-login');
+      const signupPanel = $('#panel-signup');
+      
+      if (tabName === 'login') {
+        loginPanel.style.display = 'grid';
+        signupPanel.style.display = 'none';
+      } else {
+        signupPanel.style.display = 'grid';
+        loginPanel.style.display = 'none';
+      }
+    }
+
+    /* ------------------------- Authentication ------------------------- */
+    async function login(username, password) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('taskgrid_token', data.access_token);
+          localStorage.setItem('taskgrid_user', JSON.stringify(data.user));
+          localStorage.setItem('token', data.access_token); // For dashboard
+          localStorage.setItem('role', data.user.role); // For role-based features
+          showToast('Login successful! Redirecting...', 'success');
+          
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1500);
+        } else {
+          throw new Error(data.error || 'Login failed');
+        }
+      } catch (error) {
+        showToast(`Login failed: ${error.message}`, 'error');
+      }
+    }
+
+    /* ------------------------- Year ------------------------- */
+    $("#year").textContent = new Date().getFullYear();
+
+    /* ------------------------- Theme Toggle ------------------------- */
+    const modeBtn = $("#modeToggle");
+    const setIcon = () => modeBtn.textContent = document.body.classList.contains("light") ? "☀️" : "🌙";
+    modeBtn.addEventListener("click", () => { 
+      document.body.classList.toggle("light"); 
+      setIcon(); 
+      showToast(`Switched to ${document.body.classList.contains("light") ? "light" : "dark"} mode`, 'info');
+    });
+    setIcon();
+
+    /* ------------------------- Background Animation ------------------------- */
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d", { alpha: true });
+    let W, H, nodes = [], mouse = {x: -9999, y: -9999};
+    
+    function size(){ 
+      W = canvas.width = innerWidth; 
+      H = canvas.height = innerHeight; 
+      spawn(); 
+    }
+    
+    function spawn(){
+      nodes = [];
+      const count = Math.round((W*H)/16000);
+      for (let i=0;i<count;i++){
+        nodes.push({
+          x: Math.random()*W,
+          y: Math.random()*H,
+          vx: (Math.random()-.5)*0.6,
+          vy: (Math.random()-.5)*0.6,
+          r: Math.random()*1.8+1.2,
+          p: Math.random()*Math.PI*2
+        });
+      }
+    }
+    
+    function step(){
+      ctx.clearRect(0,0,W,H);
+      // draw connections
+      for(let i=0;i<nodes.length;i++){
+        for(let j=i+1;j<nodes.length;j++){
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const d = Math.hypot(dx,dy);
+          if(d < 110){
+            ctx.strokeStyle = `rgba(99,102,241,${0.06*(1-d/110)})`;
+            ctx.beginPath(); 
+            ctx.moveTo(nodes[i].x, nodes[i].y); 
+            ctx.lineTo(nodes[j].x, nodes[j].y); 
+            ctx.stroke();
+          }
+        }
+      }
+      // draw nodes
+      for (const n of nodes){
+        const mdx = mouse.x - n.x, mdy = mouse.y - n.y, md = Math.hypot(mdx, mdy);
+        if(md < 140){
+          n.vx -= mdx/md * 0.02;
+          n.vy -= mdy/md * 0.02;
+        }
+        n.x += n.vx; n.y += n.vy;
+        if(n.x<0||n.x>W) n.vx*=-1;
+        if(n.y<0||n.y>H) n.vy*=-1;
+
+        const pulse = Math.sin(performance.now()/600 + n.p)*0.5+0.5;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r + pulse*0.7, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(6,182,212,${0.25 + pulse*0.35})`;
+        ctx.fill();
+      }
+      requestAnimationFrame(step);
+    }
+    
+    size(); 
+    step();
+    addEventListener("resize", size);
+    addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    addEventListener("mouseleave", () => { mouse.x = -9999; mouse.y = -9999; });
+
+    /* ------------------------- Event Listeners ------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Get Started buttons
+      $("#getStarted").addEventListener("click", () => openModal('authModal'));
+      $("#getStarted2").addEventListener("click", () => openModal('authModal'));
+      $("#getStarted3").addEventListener("click", () => openModal('authModal'));
+
+      // Login functionality
+      $("#loginBtn").addEventListener("click", async () => {
+        const username = $("#loginUsername").value.trim();
+        const password = $("#loginPassword").value;
+
+        if (!username || !password) {
+          showToast("Please enter both username and password", 'error');
+          return;
+        }
+
+        const loginBtn = $("#loginBtn");
+        loginBtn.classList.add('loading');
+        loginBtn.textContent = 'Logging in...';
+
+        await login(username, password);
+
+        loginBtn.classList.remove('loading');
+        loginBtn.textContent = 'Login';
+      });
+
+      // Signup button
+      $("#signupBtn").addEventListener("click", () => {
+           window.location.href = '/register';
+         });
+
+
+      // Video modal
+      $("#openVideo").addEventListener("click", () => {
+        openModal('videoModal');
+        $("#videoFrame").src = "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0&modestbranding=1";
+      });
+
+      // Enter key support for login
+      $("#loginUsername").addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') $("#loginBtn").click();
+      });
+      
+      $("#loginPassword").addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') $("#loginBtn").click();
+      });
+
+      // Close modals when clicking outside
+      $$('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            closeModal(modal.id);
+          }
+        });
+      });
+
+      // Test backend connection
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/health`);
+          if (response.ok) {
+            showToast('✅ Connected to TaskGrid backend', 'success');
+          } else {
+            showToast('⚠️ Backend connection issue', 'warning');
+          }
+        } catch (error) {
+          showToast('❌ Cannot connect to backend. Make sure server is running.', 'error');
+        }
+      }, 1000);
+
+      console.log('🚀 TaskGrid Landing Page Loaded - All buttons functional!');
+    });
+  </script>
+</body>
+</html>

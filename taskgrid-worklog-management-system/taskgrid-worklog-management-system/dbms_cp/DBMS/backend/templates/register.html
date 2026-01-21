@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskGrid - Register</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .register-container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    
+    .subtitle {
+      color: #666;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    label .required {
+      color: #e74c3c;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e1e1;
+      border-radius: 5px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    select {
+      cursor: pointer;
+      background: white;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+      margin-top: 10px;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    .message.error {
+      background: #fee;
+      color: #c33;
+      border: 1px solid #fcc;
+    }
+    
+    .message.success {
+      background: #efe;
+      color: #2a7221;
+      border: 1px solid #cfc;
+    }
+    
+    .login-link {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .login-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+    
+    .role-info {
+      margin-top: 10px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .role-info strong {
+      color: #333;
+      display: block;
+      margin-bottom: 5px;
+    }
+    
+    .role-option {
+      margin: 3px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="register-container">
+    <h1>🎯 TaskGrid</h1>
+    <p class="subtitle">Create New Account</p>
+    
+    <form id="registerForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="first_name">First Name</label>
+          <input type="text" id="first_name" name="first_name" placeholder="John">
+        </div>
+        
+        <div class="form-group">
+          <label for="last_name">Last Name</label>
+          <input type="text" id="last_name" name="last_name" placeholder="Doe">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="username">Username <span class="required">*</span></label>
+        <input type="text" id="username" name="username" required placeholder="username">
+      </div>
+      
+      <div class="form-group">
+        <label for="email">Email <span class="required">*</span></label>
+        <input type="email" id="email" name="email" required placeholder="user@example.com">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password <span class="required">*</span></label>
+        <input type="password" id="password" name="password" required placeholder="Minimum 6 characters">
+      </div>
+      
+      <div class="form-group">
+        <label for="role">Role <span class="required">*</span></label>
+        <select id="role" name="role" required>
+          <option value="team_member">Team Member</option>
+          <option value="project_manager">Project Manager</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      
+      <button type="submit" id="submitBtn">Create Account</button>
+      
+      <div id="message" class="message"></div>
+    </form>
+    
+    <div class="role-info">
+      <strong>Role Descriptions:</strong>
+      <div class="role-option">👤 <strong>Team Member:</strong> Can view and update assigned tasks</div>
+      <div class="role-option">📊 <strong>Project Manager:</strong> Can create and manage projects</div>
+      <div class="role-option">⚙️ <strong>Admin:</strong> Full system access and user management</div>
+    </div>
+    
+    <div class="login-link">
+      Already have an account? <a href="/">Login here</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const messageDiv = document.getElementById('message');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.style.display = 'block';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(form);
+      const username = formData.get('username').trim();
+      const email = formData.get('email').trim();
+      const password = formData.get('password');
+      const first_name = formData.get('first_name').trim();
+      const last_name = formData.get('last_name').trim();
+      const role = formData.get('role');
+      
+      // Basic validation
+      if (password.length < 6) {
+        showMessage('Password must be at least 6 characters long', 'error');
+        return;
+      }
+      
+      try {
+        submitBtn.disabled = true;
+        showMessage('Creating account...', 'success');
+        
+        const response = await fetch('http://127.0.0.1:5000/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username,
+            email,
+            password,
+            first_name,
+            last_name,
+            role
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showMessage('Account created successfully! Redirecting to login...', 'success');
+          
+          // Clear form
+          form.reset();
+          
+          // Redirect to login after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        } else {
+          showMessage(data.error || data.message || 'Registration failed', 'error');
+          submitBtn.disabled = false;
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        showMessage('Connection error. Please check if the server is running.', 'error');
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
